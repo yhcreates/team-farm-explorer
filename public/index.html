@@ -10,7 +10,7 @@
     --card-bg:#ffffffee; --accent:#ff9f43; --accent2:#ff6b6b;
     --green:#4c9a5f; --green-dark:#357a45; --text:#2d3436;
     --radius:16px; --shadow:0 8px 20px rgba(0,0,0,0.12);
-    --content-max:1360px; --gold:#d4a017;
+    --content-max:1400px; --gold:#d4a017;
   }
   *{box-sizing:border-box;}
   body{
@@ -18,7 +18,7 @@
     background:linear-gradient(180deg,var(--sky-top) 0%, var(--sky-bot) 55%, #cdeab0 100%);
     min-height:100vh; color:var(--text);
   }
-  header{ text-align:center; padding:20px 16px 6px; }
+  header{ text-align:center; padding:18px 16px 6px; }
   header h1{ margin:0; font-size:2rem; text-shadow:0 2px 0 rgba(255,255,255,0.6); }
   header p{ margin:4px 0 0; color:#446; font-size:0.92rem; }
   #farmNameDisplay{ margin:6px 0 0; font-size:1.05rem; font-weight:700; color:#5a3a1a; display:none; }
@@ -30,6 +30,19 @@
   .conn-badge.online{ background:#d7f7de; color:#1e7a3a; }
   .conn-badge.offline{ background:#ffe0e0; color:#a12727; }
   .conn-dot{ width:8px; height:8px; border-radius:50%; background:currentColor; }
+
+  /* ===== Farm Loop banner: a quick visual explainer of the whole game
+     loop, always visible, so new players instantly get the mental model
+     without having to open How-to-Play. ===== */
+  .farm-loop-bar{
+    max-width:var(--content-max); margin:12px auto 0; padding:10px 14px;
+    background:linear-gradient(90deg,#fff3e0,#e8f5ff,#e8f9ec,#fff3e0);
+    border-radius:var(--radius); box-shadow:var(--shadow);
+    display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px;
+    font-size:0.82rem; font-weight:700; color:#4a4a4a;
+  }
+  .farm-loop-bar .step{ display:flex; align-items:center; gap:4px; white-space:nowrap; }
+  .farm-loop-bar .arrow{ color:#bbb; font-weight:400; }
 
   .bar{
     max-width:var(--content-max); margin:14px auto 0; padding:10px 16px;
@@ -79,13 +92,13 @@
   .layout-grid{
     display:grid; grid-template-columns:1fr 350px; gap:20px; align-items:start; margin-top:16px;
   }
-  @media (max-width:1050px){
+  @media (max-width:1150px){
     .layout-grid{ grid-template-columns:1fr; }
     .side-col{ position:static !important; }
   }
   .side-col{ position:sticky; top:16px; display:flex; flex-direction:column; gap:18px; }
 
-  .game-wrap{ display:flex; justify-content:center; }
+  .game-wrap{ display:flex; justify-content:center; overflow-x:auto; }
   #gameCanvas{
     background:#8fd17c; border:10px solid #7a5230; border-radius:14px;
     box-shadow:var(--shadow); image-rendering:pixelated; max-width:100%; height:auto;
@@ -117,7 +130,7 @@
   .inventory-panel{ margin-top:14px; }
   .inv-group{ margin-bottom:10px; }
   .inv-group:last-child{ margin-bottom:0; }
-  .inv-group-title{ font-size:0.72rem; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.03em; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; }
+  .inv-group-title{ font-size:0.72rem; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.03em; margin-bottom:4px; }
   .inv-row{ display:flex; flex-wrap:wrap; gap:12px; font-size:0.9rem; }
   .inv-item{ display:flex; align-items:center; gap:5px; font-weight:600; }
   .inv-item .n{ color:var(--green-dark); }
@@ -154,7 +167,7 @@
     justify-content:center; z-index:50; padding:16px; }
   .modal{ background:#fff; border-radius:18px; max-width:480px; width:100%; padding:22px;
     box-shadow:0 20px 50px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto; position:relative; }
-  .modal.wide{ max-width:600px; }
+  .modal.wide{ max-width:620px; }
   .modal h2{ margin-top:0; }
   .modal label{ display:block; font-size:0.85rem; font-weight:600; margin:12px 0 4px; }
   .modal input[type=text], .modal select, .modal textarea{
@@ -187,10 +200,13 @@
   .photo-upload-btn{ background:#e8f0e0; color:#357a45; }
   .photo-remove-btn{ background:#ffe8e8; color:#a12727; font-size:0.76rem; padding:6px 10px; }
   .photo-hint{ font-size:0.72rem; color:#888; margin-top:4px; }
-  .photo-zoom-row{ display:none; align-items:center; gap:10px; margin-top:8px; }
-  .photo-zoom-row.show{ display:flex; }
+  .photo-editor-wrap{ display:none; flex-direction:column; align-items:center; gap:8px; margin-top:10px; }
+  .photo-editor-wrap.show{ display:flex; }
+  #photoEditorCanvas{ background:#333; border-radius:12px; cursor:grab; touch-action:none; }
+  #photoEditorCanvas:active{ cursor:grabbing; }
+  .photo-zoom-row{ display:flex; align-items:center; gap:10px; width:100%; max-width:220px; }
   .photo-zoom-row input[type=range]{ flex:1; }
-  .photo-zoom-row .zoomlabel{ font-size:0.75rem; color:#666; min-width:40px; text-align:right; }
+  .photo-zoom-row .zoomlabel{ font-size:0.75rem; color:#666; min-width:38px; text-align:right; }
 
   .crop-choices{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px; }
   .crop-choice{ border:2px solid transparent; border-radius:10px; padding:8px 4px; text-align:center; cursor:pointer;
@@ -224,7 +240,7 @@
   .sell-row .sname{ font-weight:700; font-size:0.88rem; }
   .sell-row .sprice{ font-size:0.74rem; color:#a67c00; }
   .sell-row .scount{ font-size:0.74rem; color:#666; }
-  .sell-row button{ background:var(--btn-gold, linear-gradient(180deg,#ffe27a,#d4a017)); color:#4a3600; font-size:0.78rem; padding:6px 10px; }
+  .sell-row button{ background:linear-gradient(180deg,#ffe27a,#d4a017); color:#4a3600; font-size:0.78rem; padding:6px 10px; }
 
   .expand-list{ display:flex; flex-direction:column; gap:10px; margin-top:8px; }
   .expand-row{ background:#f4f6f8; border-radius:12px; padding:10px 14px; }
@@ -238,6 +254,8 @@
   .tab-btn.active{ background:#fff3e0; color:var(--accent); }
   .tab-panel{ display:none; }
   .tab-panel.active{ display:block; }
+
+  .rule-hint{ font-size:0.78rem; color:#777; background:#f7f7f7; border-radius:8px; padding:8px 10px; margin-top:8px; }
 </style>
 </head>
 <body>
@@ -248,6 +266,15 @@
   <p id="farmNameDisplay"></p>
   <div class="conn-badge offline" id="connBadge"><span class="conn-dot"></span><span id="connText">Connecting…</span></div>
 </header>
+
+<div class="farm-loop-bar">
+  <span class="step">💌 Send Kudos</span><span class="arrow">→</span>
+  <span class="step">🌱 Random Seed</span><span class="arrow">→</span>
+  <span class="step">🌾 Grow It</span><span class="arrow">→</span>
+  <span class="step">🧺 Harvest</span><span class="arrow">→</span>
+  <span class="step">💰 Sell / 🍽️ Feed</span><span class="arrow">→</span>
+  <span class="step">🏗️ Build & Expand</span>
+</div>
 
 <div class="bar farm-level-bar">
   <div class="row"><span id="levelName">🌱 Empty Field</span><span id="levelCount">0 points</span></div>
@@ -282,9 +309,9 @@
   <div class="layout-grid">
     <div class="game-col">
       <div class="game-wrap">
-        <canvas id="gameCanvas" width="936" height="624" tabindex="0"></canvas>
+        <canvas id="gameCanvas" width="1144" height="728" tabindex="0"></canvas>
       </div>
-      <p class="controls-hint">🎮 Move: <b>Arrow keys / WASD</b> or <b>click anywhere</b> on the farm to walk there &nbsp; • &nbsp; 🖐 Interact: <b>E</b> / <b>Space</b> or use the action buttons below</p>
+      <p class="controls-hint">🎮 Move: <b>Arrow keys / WASD</b> or <b>click anywhere</b> on the farm to walk there &nbsp; • &nbsp; 🖐 Interact: <b>E</b> / <b>Space</b> or use the action buttons below &nbsp; • &nbsp; 🔒 grey plots on the field are locked — unlock them in <b>Build & Expand</b></p>
 
       <div class="panel action-toolbar" id="actionToolbar">
         <button class="act-btn" id="actTill" data-act="till">🛠️<span class="lbl">Till Soil</span></button>
@@ -298,15 +325,15 @@
 
       <div class="panel inventory-panel">
         <div class="inv-group">
-          <div class="inv-group-title">🌱 Seed Bank (earned from kudos — spend to plant)</div>
+          <div class="inv-group-title">🌱 Seed Bank — only earned by sending kudos, spent when you plant</div>
           <div class="inv-row" id="seedStrip"></div>
         </div>
         <div class="inv-group">
-          <div class="inv-group-title"><span>🧺 Harvest Basket (feed to animals, or sell at the Market)</span></div>
+          <div class="inv-group-title">🧺 Harvest Basket — feed to animals, or sell for coins at the Market</div>
           <div class="inv-row" id="harvestStrip"></div>
         </div>
         <div class="inv-group">
-          <div class="inv-group-title">🐾 Animal Products (sellable too!)</div>
+          <div class="inv-group-title">🐾 Animal Products — sellable too!</div>
           <div class="inv-row" id="productStrip"></div>
         </div>
       </div>
@@ -349,12 +376,15 @@
           <button class="btn-secondary photo-upload-btn" id="photoUploadBtn">📷 Upload Photo</button>
           <button class="btn-secondary photo-remove-btn" id="photoRemoveBtn" style="display:none;">✕ Remove Photo</button>
         </div>
-        <div class="photo-zoom-row" id="photoZoomRow">
-          <span style="font-size:0.75rem;color:#666;">🔍 Zoom</span>
-          <input type="range" id="photoZoomSlider" min="100" max="250" value="100" step="5">
-          <span class="zoomlabel" id="photoZoomLabel">100%</span>
+        <div class="photo-editor-wrap" id="photoEditorWrap">
+          <canvas id="photoEditorCanvas" width="200" height="200"></canvas>
+          <p class="photo-hint">🖱️ Drag inside the circle to reposition your face</p>
+          <div class="photo-zoom-row">
+            <span style="font-size:0.75rem;color:#666;">🔍</span>
+            <input type="range" id="photoZoomSlider" min="100" max="300" value="100" step="5">
+            <span class="zoomlabel" id="photoZoomLabel">100%</span>
+          </div>
         </div>
-        <p class="photo-hint">Upload a headshot to show on your farmer's face — drag the zoom slider to frame it just right. Re-upload the same photo anytime to change the zoom again.</p>
         <label>Skin Tone</label>
         <div class="swatch-row" id="skinSwatches"></div>
         <label>Hair Color</label>
@@ -432,6 +462,9 @@
 <div class="overlay" id="howOverlay" style="display:none;">
   <div class="modal">
     <h2>❓ How to Play</h2>
+    <p style="font-size:0.88rem;font-weight:700;color:#7a3b1a;background:#fff3e0;padding:8px 12px;border-radius:8px;">
+      The whole loop in one line: 💌 Kudos → 🌱 Seed → 🌾 Grow → 🧺 Harvest → 💰 Sell (or 🍽️ Feed) → 🏗️ Build & Expand
+    </p>
     <ol style="font-size:0.9rem; line-height:1.6;">
       <li>This farm is <b>live and shared</b> — everyone who opens this page joins the same farm and sees each other in real time.</li>
       <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one completely random seed. Pick a sentiment describing WHY you're recognizing them — it has no effect on which seed you get. Add your own custom sentiment tags anytime.</li>
@@ -439,10 +472,10 @@
       <li><b>Crops grow over real calendar days</b> (up to a week for the slowest). Watering is optional and speeds things up a little.</li>
       <li><b>Harvest</b> once ready into the shared Harvest Basket.</li>
       <li><b>Feed animals</b> their favorite crop — chickens eat corn 🌽, cows eat carrots 🥕, sheep eat strawberries 🍓 — to earn eggs, milk, and wool. They also wander the pen on their own!</li>
-      <li><b>Sell EVERYTHING at the Market 💰</b> — including sunflowers, pumpkins, and tomatoes (which no animal eats) — for shared team coins. Walk to the Market stall (near the barn) or click "Open Market" anytime.</li>
-      <li><b>Spend coins in Build & Expand</b> — decorate your farm, or permanently unlock new plots of farmland to grow even more.</li>
+      <li><b>Sell EVERYTHING at the Market 💰</b> — including sunflowers, pumpkins, and tomatoes (which no animal eats) — for shared team coins.</li>
+      <li><b>Spend coins in Build & Expand</b> — decorations cost coins only (no other requirement), and you can permanently unlock more of the farm's own field to plant even more.</li>
       <li>Check the <b>leaderboards</b>, including Top Sellers, to see how the whole team is contributing.</li>
-      <li>Use <b>🎨 My Farmer</b> to change your name, look, or upload/zoom a photo anytime.</li>
+      <li>Use <b>🎨 My Farmer</b> to change your name, look, or upload/reposition a photo anytime.</li>
     </ol>
     <div class="modal-actions"><button class="btn-primary" id="howClose">Got it!</button></div>
   </div>
@@ -467,15 +500,14 @@
   <div class="modal wide">
     <button class="modal-close-x" id="buildCloseX" title="Back to farm">✕</button>
     <h2>🏗️ Build & Expand</h2>
-    <p style="font-size:0.85rem;color:#666;">Team coins: <b id="buildCoinDisplay">0</b> 💰</p>
+    <p style="font-size:0.85rem;color:#666;">Team coins: <b id="buildCoinDisplay">0</b> 💰 — earned by selling at the Market</p>
     <div class="tabs">
       <button class="tab-btn active" id="tabDecorate">🌼 Decorations</button>
-      <button class="tab-btn" id="tabExpand">🗺️ Expand Farm</button>
+      <button class="tab-btn" id="tabExpand">🗺️ Expand Field</button>
     </div>
     <div class="tab-panel active" id="decoratePanel">
-      <p style="font-size:0.85rem;color:#555;" id="buildProgressNote">Unlock more decorations as your team grows more crops and animal products together!</p>
+      <p class="rule-hint">Every decoration just costs coins — no other requirement. Pick one, click "Place on Farm," then click any open grass tile.</p>
       <div class="crop-choices" id="decorChoices"></div>
-      <p style="font-size:0.78rem;color:#888;margin-top:10px;">Pick a decoration above, then click <b>Place on Farm</b> and click any open grass tile to place it.</p>
       <div class="modal-actions" style="justify-content:flex-start;">
         <button class="btn-primary" id="buildPlaceBtn">📍 Place on Farm</button>
       </div>
@@ -485,7 +517,7 @@
       </div>
     </div>
     <div class="tab-panel" id="expandPanel">
-      <p style="font-size:0.85rem;color:#555;">Permanently unlock new plots of farmland using team coins. Once unlocked, anyone can till and plant there — forever.</p>
+      <p class="rule-hint">Your farmland field has locked sections (shown greyed-out with a 🔒 right on the field). Unlock them permanently with coins — once unlocked, anyone can till and plant there forever.</p>
       <div class="expand-list" id="expandList"></div>
     </div>
   </div>
@@ -495,13 +527,13 @@
 /* ============================================================
    Team Farm Explorer — Multiplayer Client
    ------------------------------------------------------------
-   Mirrors server.js's economy + growth-timing + animal-wander +
-   market/expansion rules for instant client-side UX, but the
-   server is always the authoritative source of truth.
+   Mirrors server.js's grid, economy, growth-timing, and animal-
+   wander rules for instant client-side UX, but the server is
+   always the authoritative source of truth.
    ============================================================ */
 
 /* ============ Constants (must match server) ============ */
-const TILE = 52, COLS = 18, ROWS = 12;
+const TILE = 52, ROWS = 14, COLS = 22;
 const BASE_TILE = 42;
 const CHAR_SCALE = TILE / BASE_TILE;
 const HAPPY_MAX = 5;
@@ -523,9 +555,6 @@ const CROP_GROWTH_MS = {
   pumpkin:    7.0 * DAY_MS
 };
 
-/* Every crop is sellable at the Market now — including the ones
-   no animal eats (sunflower, pumpkin, tomato) — so nothing grown
-   is ever a dead end. Mirrors server.js SELL_PRICES exactly. */
 const SELL_PRICES = {
   carrot: 4, corn: 5, tomato: 6, sunflower: 8, strawberry: 10, pumpkin: 14,
   egg: 8, milk: 12, wool: 16
@@ -581,45 +610,48 @@ const LEVELS = [
   {min:70, name:'Legendary Farm 🌈'}
 ];
 
-/* Decorations now list a coin `cost` alongside the points-based
-   unlock tier (`minPoints`) — mirrors server.js DECORATIONS_DEF. */
+/* Decorations cost ONLY coins now — no separate points-tier gate. */
 const DECORATIONS = [
-  {id:'flowerpatch', emoji:'🌼', name:'Flower Patch', minPoints:0,  cost:15},
-  {id:'rock',        emoji:'🪨', name:'Garden Rock',  minPoints:0,  cost:15},
-  {id:'haybale',     emoji:'🧺', name:'Hay Bale',     minPoints:8,  cost:30},
-  {id:'scarecrow',   emoji:'🎃', name:'Scarecrow',    minPoints:8,  cost:30},
-  {id:'fountain',    emoji:'⛲', name:'Fountain',     minPoints:20, cost:60},
-  {id:'bench',       emoji:'🪑', name:'Bench',        minPoints:20, cost:60},
-  {id:'lantern',     emoji:'🏮', name:'Lantern',      minPoints:40, cost:120},
-  {id:'tent',        emoji:'⛺', name:'Party Tent',   minPoints:40, cost:120},
-  {id:'rainbow',     emoji:'🌈', name:'Rainbow Arch', minPoints:70, cost:250},
-  {id:'statue',      emoji:'🗿', name:'Team Statue',  minPoints:70, cost:250}
+  {id:'flowerpatch', emoji:'🌼', name:'Flower Patch', cost:15},
+  {id:'rock',        emoji:'🪨', name:'Garden Rock',  cost:15},
+  {id:'haybale',     emoji:'🧺', name:'Hay Bale',     cost:30},
+  {id:'scarecrow',   emoji:'🎃', name:'Scarecrow',    cost:30},
+  {id:'fountain',    emoji:'⛲', name:'Fountain',     cost:60},
+  {id:'bench',       emoji:'🪑', name:'Bench',        cost:60},
+  {id:'lantern',     emoji:'🏮', name:'Lantern',      cost:120},
+  {id:'tent',        emoji:'⛺', name:'Party Tent',   cost:120},
+  {id:'rainbow',     emoji:'🌈', name:'Rainbow Arch', cost:250},
+  {id:'statue',      emoji:'🗿', name:'Team Statue',  cost:250}
 ];
 function decorInfo(id){ return DECORATIONS.find(d=>d.id===id); }
 
-/* Farm Expansions — mirrors server.js EXPANSION_ZONES exactly.
-   Tile lists MUST match the server so client-side rendering and
-   pathfinding agree with what the server will actually allow. */
+/* Field Expansions — mirrors server.js exactly. The locked tiles
+   are part of the SAME contiguous farmland field (not a separate
+   detached zone elsewhere on the map). */
+function buildExpansionTiles(cMin, cMax){
+  const tiles = [];
+  for(let r=4; r<=9; r++) for(let c=cMin; c<=cMax; c++) tiles.push([r,c]);
+  return tiles;
+}
 const EXPANSION_ZONES = [
-  { id:'south_field', name:'South Field', cost:150,
-    tiles: [[9,5],[9,6],[9,7],[9,8],[10,5],[10,6],[10,7],[10,8]] },
-  { id:'east_field', name:'East Field', cost:300,
-    tiles: [[10,10],[10,11],[10,12],[10,13],[10,14],[10,15]] }
+  { id:'field_expansion_1', name:'Field Expansion I',  cost:200, tiles: buildExpansionTiles(10,12) },
+  { id:'field_expansion_2', name:'Field Expansion II', cost:400, tiles: buildExpansionTiles(13,15) }
 ];
 function expansionZoneAt(r,c){
   return EXPANSION_ZONES.find(z => z.tiles.some(([zr,zc])=>zr===r&&zc===c));
 }
 function isFarmlandTile(r,c){
-  if(grid[r]?.[c] === 'farmland') return true;
+  if(grid[r]?.[c] !== 'farmland') return false;
   const zone = expansionZoneAt(r,c);
-  if(zone && state.unlockedExpansions && state.unlockedExpansions[zone.id]) return true;
-  return false;
+  if(!zone) return true;
+  return !!(state.unlockedExpansions && state.unlockedExpansions[zone.id]);
 }
 
 const DIRS = { up:[-1,0], down:[1,0], left:[0,-1], right:[0,1] };
 const OBSTACLES = new Set(['tree','house','barn','fence','water']);
 
-/* ============ Grid (mirrors server exactly) ============ */
+/* ============ Grid (mirrors server exactly — see server.js for the
+   detailed layout notes and reachability verification). ============ */
 let grid = [];
 function buildGrid(){
   const g = [];
@@ -627,20 +659,22 @@ function buildGrid(){
   for(let r=0;r<ROWS;r++){ g[r][0]='tree'; g[r][COLS-1]='tree'; }
   for(let c=0;c<COLS;c++){ g[0][c]='tree'; g[ROWS-1][c]='tree'; }
   for(let r=1;r<=2;r++) for(let c=1;c<=3;c++) g[r][c]='house';
-  for(let r=1;r<=2;r++) for(let c=13;c<=15;c++) g[r][c]='barn';
-  g[1][8]='kudos';
-  g[2][9]='market';
-  for(let c=4;c<=7;c++) g[1][c]='path';
-  g[1][12]='path'; g[2][12]='path';
-  for(let c=1;c<=8;c++){ g[3][c]='fence'; g[8][c]='fence'; }
-  for(let r=3;r<=8;r++){ g[r][1]='fence'; g[r][8]='fence'; }
-  for(let r=4;r<=7;r++) for(let c=2;c<=7;c++) g[r][c]='farmland';
-  g[3][2]='path'; g[8][4]='path';
-  for(let c=9;c<=16;c++){ g[3][c]='fence'; g[9][c]='fence'; }
-  for(let r=3;r<=9;r++){ g[r][9]='fence'; g[r][16]='fence'; }
-  for(let r=4;r<=8;r++) for(let c=10;c<=15;c++) g[r][c]='pen';
-  g[3][12]='path'; g[9][12]='path';
-  g[9][2]='water'; g[9][3]='water'; g[10][2]='water'; g[10][3]='water';
+  for(let c=17;c<=19;c++) g[1][c]='barn';
+  for(let c=4;c<=9;c++) g[1][c]='path';
+  g[1][10]='kudos';
+  g[1][11]='path';
+  g[1][12]='market';
+  for(let c=13;c<=16;c++) g[1][c]='path';
+  for(let c=1;c<=16;c++){ g[3][c]='fence'; g[10][c]='fence'; }
+  for(let r=3;r<=10;r++){ g[r][1]='fence'; g[r][16]='fence'; }
+  for(let r=4;r<=9;r++) for(let c=2;c<=15;c++) g[r][c]='farmland';
+  g[3][4]='path'; g[10][8]='path';
+  for(let c=17;c<=19;c++) g[3][c]='fence';
+  for(let c=17;c<=20;c++) g[12][c]='fence';
+  for(let r=3;r<=12;r++) g[r][17]='fence';
+  g[3][20]='path';
+  for(let r=4;r<=11;r++) for(let c=18;c<=20;c++) g[r][c]='pen';
+  g[11][2]='water'; g[11][3]='water'; g[12][2]='water'; g[12][3]='water';
   return g;
 }
 function isObstacle(t){ return OBSTACLES.has(t); }
@@ -656,7 +690,7 @@ function readyAtMs(cell){ return (cell.plantedAt||0) + effectiveDurationMs(cell)
 function isReady(cell){ return !!cell.type && Date.now() >= readyAtMs(cell); }
 
 /* ============ Networking ============ */
-const PLAYER_ID_KEY = 'teamFarmPlayerId_v5';
+const PLAYER_ID_KEY = 'teamFarmPlayerId_v6';
 let myPlayerId = null;
 let state = {
   teamName:'', farmers:[], crops:{}, animals:[],
@@ -704,7 +738,7 @@ function myFarmer(){ return state.farmers.find(f=>f.id===myPlayerId); }
 function animalAt(r,c){ return state.animals.find(a=>a.r===r && a.c===c); }
 
 /* ============ Player runtime ============ */
-let player = { r:1, c:5, facing:'down', pixelX:5*TILE, pixelY:1*TILE, fromX:5*TILE, fromY:1*TILE, toX:5*TILE, toY:1*TILE, animProgress:1, path:[], onArrive:null };
+let player = { r:1, c:4, facing:'down', pixelX:4*TILE, pixelY:1*TILE, fromX:4*TILE, fromY:1*TILE, toX:4*TILE, toY:1*TILE, animProgress:1, path:[], onArrive:null };
 let remoteVisual = {};
 let animalVisual = {};
 
@@ -732,8 +766,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const COLORS = {
   grassA:'#8fd17c', grassB:'#82c96f', path:'#e3c69a', water:'#5bb8e0',
-  fenceWood:'#a9713f', farmU:'#9c7148', farmT:'#6e4d30', pen:'#e8dcb5',
-  kudosPost:'#8b5a2b', marketAwning:'#c0392b', marketWood:'#8b5a2b'
+  fenceWood:'#a9713f', farmU:'#9c7148', farmT:'#6e4d30', farmLocked:'#8a8375',
+  pen:'#e8dcb5', kudosPost:'#8b5a2b', marketAwning:'#c0392b', marketWood:'#8b5a2b'
 };
 
 function roundRect(c,x,y,w,h,r){
@@ -747,22 +781,7 @@ function drawTile(r,c){
   const type = grid[r][c];
   const checker = (r+c)%2===0;
   switch(type){
-    case 'grass': {
-      ctx.fillStyle = checker?COLORS.grassA:COLORS.grassB; ctx.fillRect(x,y,TILE,TILE);
-      const zone = expansionZoneAt(r,c);
-      if(zone && !(state.unlockedExpansions && state.unlockedExpansions[zone.id])){
-        // Locked expansion tile: subtle overlay + lock icon so it reads as
-        // "special/locked" without looking broken or like an obstacle.
-        ctx.fillStyle = 'rgba(80,60,20,0.18)'; ctx.fillRect(x,y,TILE,TILE);
-        ctx.strokeStyle = 'rgba(120,90,30,0.35)'; ctx.lineWidth=1;
-        ctx.strokeRect(x+2,y+2,TILE-4,TILE-4);
-        ctx.font=(TILE*0.32)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText('🔒', x+TILE/2, y+TILE/2);
-      } else if(zone && state.unlockedExpansions[zone.id]){
-        drawFarmland(r,c,x,y);
-      }
-      break;
-    }
+    case 'grass': ctx.fillStyle = checker?COLORS.grassA:COLORS.grassB; ctx.fillRect(x,y,TILE,TILE); break;
     case 'path': ctx.fillStyle = COLORS.path; ctx.fillRect(x,y,TILE,TILE); break;
     case 'tree':
       ctx.fillStyle = COLORS.grassA; ctx.fillRect(x,y,TILE,TILE);
@@ -806,7 +825,29 @@ function drawTile(r,c){
   }
 }
 
+/* Farmland tiles that belong to a not-yet-unlocked expansion zone
+   render distinctly: greyed/desaturated soil + a lock icon + the
+   coin cost right on the tile, so the rule is self-explanatory
+   without opening any modal. */
 function drawFarmland(r,c,x,y){
+  const zone = expansionZoneAt(r,c);
+  const locked = zone && !(state.unlockedExpansions && state.unlockedExpansions[zone.id]);
+  if(locked){
+    ctx.fillStyle = COLORS.farmLocked; ctx.fillRect(x,y,TILE,TILE);
+    ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=1;
+    for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(x+2,y+i*TILE/4); ctx.lineTo(x+TILE-2,y+i*TILE/4); ctx.stroke(); }
+    ctx.font=(TILE*0.34)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🔒', x+TILE/2, y+TILE*0.4);
+    const label = zone.cost+'💰';
+    ctx.font=(TILE*0.16)+'px sans-serif';
+    const labelW = ctx.measureText(label).width;
+    const pillX = x+TILE/2-labelW/2-5, pillY = y+TILE*0.72, pillW = labelW+10, pillH = TILE*0.18;
+    ctx.fillStyle='rgba(255,255,255,0.85)';
+    roundRect(ctx, pillX, pillY, pillW, pillH, pillH/2); ctx.fill();
+    ctx.fillStyle='#6b5000';
+    ctx.fillText(label, x+TILE/2, pillY+pillH/2+1);
+    return;
+  }
   const key = cellKey(r,c);
   const cell = state.crops[key];
   const stage = cell ? cell.stage : 0;
@@ -865,10 +906,9 @@ function drawAnimal(a){
   ctx.fillText(cropEmoji(a.likes), x+TILE*0.82, y+TILE*0.9);
 }
 
-/* Draws a farmer. If a photo is set, it renders LARGER than the
-   default head (radius 13 vs 10, scaled by `s`) so uploaded photos
-   read clearly at a glance — this is the "enlarge the photo"
-   sizing the head/hat/name-tag positions are nudged accordingly. */
+/* Draws a farmer. If a photo is set, it renders ENLARGED (radius
+   13 vs the default head's 10, scaled by `s`) so uploaded photos
+   are clearly recognizable at a glance. */
 function drawFarmer(c,cx,cy,farmer,facing,bob,scale){
   if(!farmer) return;
   const s = scale || 1;
@@ -883,7 +923,7 @@ function drawFarmer(c,cx,cy,farmer,facing,bob,scale){
 
   const photoImg = farmer.photo ? getPhotoImage(farmer) : null;
   if(photoImg){
-    const R = 13*s; // enlarged radius for photo faces
+    const R = 13*s;
     c.save();
     c.beginPath(); c.arc(cx,y-16*s,R,0,Math.PI*2); c.clip();
     c.drawImage(photoImg, cx-R, y-16*s-R, R*2, R*2);
@@ -966,7 +1006,7 @@ function draw(){
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) drawTile(r,c);
   drawDecorations();
   drawBuilding(1,1,3,2,'#f4e3c1','#c0392b');
-  drawBuilding(13,1,15,2,'#8b3a2a','#4a2c14');
+  drawBuilding(17,1,19,1,'#8b3a2a','#4a2c14');
   state.animals.forEach(a=>drawAnimal(a));
   drawAllFarmers();
   if(placementModeActive){
@@ -1071,11 +1111,6 @@ function reconstructPath(parent, gr, gc){
 
 function facingTile(){ const [dr,dc] = DIRS[player.facing]; return {r:player.r+dr, c:player.c+dc}; }
 
-/* Determines what the player can currently act on. Checks the
-   tile they're STANDING on first (farmland incl. unlocked
-   expansions, kudos board, market), then falls back to the tile
-   they're FACING (used for animals, which physically block
-   movement, so you interact with them from an adjacent tile). */
 function getContext(){
   const sr = player.r, sc = player.c;
   if(isFarmlandTile(sr,sc)) return {kind:'farmland', r:sr, c:sc, cell:getCell(sr,sc)};
@@ -1095,10 +1130,6 @@ function getContext(){
 }
 function getCell(r,c){ return state.crops[cellKey(r,c)] || {stage:0,type:null,plantedAt:null,waterCount:0,plantedBy:null}; }
 
-/* Single shared entry point for "do the contextually-correct
-   thing right where I am" — used by both the E/Space key, the
-   action buttons, AND click-to-walk's arrival callback, so all
-   three input methods behave identically with no duplicated logic. */
 function interact(){
   if(anyModalOpen() || !myFarmer()) return;
   const ctx2 = getContext();
@@ -1140,7 +1171,7 @@ function goToTileAndAct(tr,tc){
   }
   const onArrive = ()=>{
     if(faceDir) player.facing = faceDir;
-    interact(); // reuse the single shared interaction entry point
+    interact();
   };
   const fullPath = reconstructPath(parent, goalR, goalC);
   fullPath.shift();
@@ -1567,25 +1598,67 @@ setInterval(()=>{
   }
 }, 60*1000);
 
-/* ============ Photo upload (character creator) ============
-   Resizes/crops the chosen image client-side. A "zoom" slider lets
-   the user re-frame the shot (zooming into the center) BEFORE
-   confirming — recomputed live from the original loaded Image, so
-   moving the slider never needs to re-read the file. */
-let creatorPhotoSourceImage = null; // raw Image object of the last-selected file
-function cropPhotoAtZoom(zoomPercent){
+/* ============ Photo upload + drag/zoom editor (character creator) ============
+   The user uploads a photo, then can DRAG within a circular preview to
+   reposition their face and use a slider to zoom in/out. The final
+   cropped+compressed result is baked into a small data URL client-side
+   (server never sees the raw photo or does any image processing). */
+let creatorPhotoSourceImage = null;
+const PHOTO_EDITOR_SIZE = 200;
+const PHOTO_CIRCLE_R = 90;
+let photoView = { zoomFactor: 1.0, offsetX: 0, offsetY: 0 };
+let photoDragState = { dragging:false, lastX:0, lastY:0 };
+
+function baseScaleForPhoto(img){ return (PHOTO_CIRCLE_R*2) / Math.min(img.width, img.height); }
+function clampPhotoOffsets(img){
+  const scale = baseScaleForPhoto(img) * photoView.zoomFactor;
+  const maxOffX = Math.max(0, img.width*scale/2 - PHOTO_CIRCLE_R);
+  const maxOffY = Math.max(0, img.height*scale/2 - PHOTO_CIRCLE_R);
+  photoView.offsetX = Math.max(-maxOffX, Math.min(maxOffX, photoView.offsetX));
+  photoView.offsetY = Math.max(-maxOffY, Math.min(maxOffY, photoView.offsetY));
+}
+function renderPhotoEditor(){
+  if(!creatorPhotoSourceImage) return;
+  const c = document.getElementById('photoEditorCanvas');
+  const pctx = c.getContext('2d');
+  pctx.clearRect(0,0,c.width,c.height);
+  const img = creatorPhotoSourceImage;
+  clampPhotoOffsets(img);
+  const scale = baseScaleForPhoto(img) * photoView.zoomFactor;
+  const cx = c.width/2, cy = c.height/2;
+  const drawW = img.width*scale, drawH = img.height*scale;
+  pctx.fillStyle = '#222'; pctx.fillRect(0,0,c.width,c.height);
+  pctx.drawImage(img, cx - drawW/2 + photoView.offsetX, cy - drawH/2 + photoView.offsetY, drawW, drawH);
+  // Dim everything outside the circle so the crop boundary is obvious
+  pctx.save();
+  pctx.fillStyle = 'rgba(0,0,0,0.55)';
+  pctx.beginPath();
+  pctx.rect(0,0,c.width,c.height);
+  pctx.moveTo(cx+PHOTO_CIRCLE_R, cy);
+  pctx.arc(cx,cy,PHOTO_CIRCLE_R,0,Math.PI*2, true);
+  pctx.fill('evenodd');
+  pctx.restore();
+  pctx.strokeStyle = '#fff'; pctx.lineWidth = 3;
+  pctx.beginPath(); pctx.arc(cx,cy,PHOTO_CIRCLE_R,0,Math.PI*2); pctx.stroke();
+}
+function computeFinalCroppedPhoto(){
   if(!creatorPhotoSourceImage) return null;
   const img = creatorPhotoSourceImage;
-  const outSize = 128;
-  const minDim = Math.min(img.width, img.height);
-  const cropSize = Math.max(4, minDim / (zoomPercent/100));
-  const sx = Math.max(0, (img.width - cropSize)/2);
-  const sy = Math.max(0, (img.height - cropSize)/2);
+  clampPhotoOffsets(img);
+  const scale = baseScaleForPhoto(img) * photoView.zoomFactor;
+  const cropSizeInImage = (PHOTO_CIRCLE_R*2) / scale;
+  let centerImgX = img.width/2 - photoView.offsetX/scale;
+  let centerImgY = img.height/2 - photoView.offsetY/scale;
+  let sx = centerImgX - cropSizeInImage/2;
+  let sy = centerImgY - cropSizeInImage/2;
+  sx = Math.max(0, Math.min(img.width - cropSizeInImage, sx));
+  sy = Math.max(0, Math.min(img.height - cropSizeInImage, sy));
+  const outSize = 144;
   const off = document.createElement('canvas');
   off.width = outSize; off.height = outSize;
   const octx = off.getContext('2d');
-  octx.drawImage(img, sx, sy, cropSize, cropSize, 0, 0, outSize, outSize);
-  return off.toDataURL('image/jpeg', 0.72);
+  octx.drawImage(img, sx, sy, cropSizeInImage, cropSizeInImage, 0, 0, outSize, outSize);
+  return off.toDataURL('image/jpeg', 0.75);
 }
 function loadImageFromFile(file){
   return new Promise((resolve, reject)=>{
@@ -1607,15 +1680,17 @@ document.getElementById('photoFileInput').addEventListener('change', async (e)=>
   if(!file.type || !file.type.startsWith('image/')){ toast('⚠️ Please choose an image file.'); return; }
   try{
     creatorPhotoSourceImage = await loadImageFromFile(file);
+    photoView = { zoomFactor: 1.0, offsetX: 0, offsetY: 0 };
     document.getElementById('photoZoomSlider').value = 100;
     document.getElementById('photoZoomLabel').textContent = '100%';
-    document.getElementById('photoZoomRow').classList.add('show');
-    const dataUrl = cropPhotoAtZoom(100);
+    document.getElementById('photoEditorWrap').classList.add('show');
+    renderPhotoEditor();
+    const dataUrl = computeFinalCroppedPhoto();
     if(dataUrl.length > MAX_PHOTO_DATA_URL_LENGTH){ toast('⚠️ Photo is too large even after compression — try a simpler image.'); return; }
     creatorSelection.photo = dataUrl;
     document.getElementById('photoRemoveBtn').style.display = 'inline-block';
     drawCreatorPreview();
-    toast('📷 Photo added! Use the zoom slider to frame it, then Join/Save.');
+    toast('📷 Drag inside the circle to reposition, or use the zoom slider!');
   }catch(err){
     toast('⚠️ Could not process that photo.');
   }
@@ -1624,19 +1699,55 @@ document.getElementById('photoZoomSlider').addEventListener('input', (e)=>{
   const zoom = Number(e.target.value);
   document.getElementById('photoZoomLabel').textContent = zoom + '%';
   if(!creatorPhotoSourceImage) return;
-  const dataUrl = cropPhotoAtZoom(zoom);
-  if(dataUrl.length > MAX_PHOTO_DATA_URL_LENGTH) return; // ignore, keep last good crop
-  creatorSelection.photo = dataUrl;
-  drawCreatorPreview();
+  photoView.zoomFactor = zoom/100;
+  renderPhotoEditor();
+  const dataUrl = computeFinalCroppedPhoto();
+  if(dataUrl.length <= MAX_PHOTO_DATA_URL_LENGTH){ creatorSelection.photo = dataUrl; drawCreatorPreview(); }
 });
 document.getElementById('photoRemoveBtn').onclick = ()=>{
   creatorSelection.photo = null;
   creatorPhotoSourceImage = null;
   document.getElementById('photoFileInput').value = '';
   document.getElementById('photoRemoveBtn').style.display = 'none';
-  document.getElementById('photoZoomRow').classList.remove('show');
+  document.getElementById('photoEditorWrap').classList.remove('show');
   drawCreatorPreview();
 };
+/* Drag-to-reposition on the photo editor canvas. Supports both mouse
+   and touch input so it works on tablets/phones too. */
+function photoEditorPointerPos(evt, canvasEl){
+  const rect = canvasEl.getBoundingClientRect();
+  const scaleX = canvasEl.width/rect.width, scaleY = canvasEl.height/rect.height;
+  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+  return { x:(clientX-rect.left)*scaleX, y:(clientY-rect.top)*scaleY };
+}
+function startPhotoDrag(evt){
+  if(!creatorPhotoSourceImage) return;
+  const canvasEl = document.getElementById('photoEditorCanvas');
+  const pos = photoEditorPointerPos(evt, canvasEl);
+  photoDragState.dragging = true;
+  photoDragState.lastX = pos.x; photoDragState.lastY = pos.y;
+  evt.preventDefault();
+}
+function movePhotoDrag(evt){
+  if(!photoDragState.dragging || !creatorPhotoSourceImage) return;
+  const canvasEl = document.getElementById('photoEditorCanvas');
+  const pos = photoEditorPointerPos(evt, canvasEl);
+  const dx = pos.x - photoDragState.lastX, dy = pos.y - photoDragState.lastY;
+  photoView.offsetX += dx; photoView.offsetY += dy;
+  photoDragState.lastX = pos.x; photoDragState.lastY = pos.y;
+  renderPhotoEditor();
+  const dataUrl = computeFinalCroppedPhoto();
+  if(dataUrl.length <= MAX_PHOTO_DATA_URL_LENGTH){ creatorSelection.photo = dataUrl; drawCreatorPreview(); }
+  evt.preventDefault();
+}
+function endPhotoDrag(){ photoDragState.dragging = false; }
+document.getElementById('photoEditorCanvas').addEventListener('mousedown', startPhotoDrag);
+window.addEventListener('mousemove', movePhotoDrag);
+window.addEventListener('mouseup', endPhotoDrag);
+document.getElementById('photoEditorCanvas').addEventListener('touchstart', startPhotoDrag, {passive:false});
+window.addEventListener('touchmove', movePhotoDrag, {passive:false});
+window.addEventListener('touchend', endPhotoDrag);
 
 /* ============ Character Creator (join + edit) ============ */
 let creatorSelection = { skin:SKIN_COLORS[0], hair:HAIR_COLORS[0], shirt:SHIRT_COLORS[0], pants:PANTS_COLORS[0], hat:'none', photo:null };
@@ -1682,7 +1793,8 @@ function openCreator(isFirstTime){
   creatorSelection = existing
     ? { skin:existing.skin, hair:existing.hair, shirt:existing.shirt, pants:existing.pants, hat:existing.hat, photo:existing.photo||null }
     : { skin:SKIN_COLORS[0], hair:HAIR_COLORS[0], shirt:SHIRT_COLORS[0], pants:PANTS_COLORS[0], hat:'none', photo:null };
-  creatorPhotoSourceImage = null; // any previously-saved photo can't be re-zoomed without re-uploading
+  creatorPhotoSourceImage = null; // can't re-derive drag/zoom controls from an already-saved photo without the original file
+  photoView = { zoomFactor:1.0, offsetX:0, offsetY:0 };
   buildSwatches('skinSwatches', SKIN_COLORS, 'skin', creatorSelection.skin);
   buildSwatches('hairSwatches', HAIR_COLORS, 'hair', creatorSelection.hair);
   buildSwatches('shirtSwatches', SHIRT_COLORS, 'shirt', creatorSelection.shirt);
@@ -1690,7 +1802,7 @@ function openCreator(isFirstTime){
   buildHatChoices(creatorSelection.hat);
   document.getElementById('photoFileInput').value = '';
   document.getElementById('photoRemoveBtn').style.display = creatorSelection.photo ? 'inline-block' : 'none';
-  document.getElementById('photoZoomRow').classList.remove('show');
+  document.getElementById('photoEditorWrap').classList.remove('show');
 
   const needsFarmName = isFirstTime && !state.teamName;
   document.getElementById('creatorFarmName').style.display = needsFarmName ? 'block' : 'none';
@@ -1790,38 +1902,33 @@ function openBuildModal(){
   renderExpandTab();
   document.getElementById('buildOverlay').style.display='flex';
 }
-function unlockedByPoints(){ return DECORATIONS.filter(d=>d.minPoints<=currentPoints()); }
-function nextLockedDecoration(){
-  const locked = DECORATIONS.filter(d=>d.minPoints>currentPoints()).sort((a,b)=>a.minPoints-b.minPoints);
-  return locked[0] || null;
-}
 let buildSelectedDecorId = null;
 function renderDecorateTab(){
-  const unlocked = unlockedByPoints();
-  buildSelectedDecorId = unlocked[0] ? unlocked[0].id : null;
+  buildSelectedDecorId = DECORATIONS[0] ? DECORATIONS[0].id : null;
   const wrap = document.getElementById('decorChoices');
   wrap.innerHTML='';
-  unlocked.forEach(d=>{
+  DECORATIONS.forEach(d=>{
+    const affordable = (state.coins||0) >= d.cost;
     const div = document.createElement('div');
-    div.className='crop-choice' + (d.id===buildSelectedDecorId?' selected':'');
+    div.className='crop-choice' + (d.id===buildSelectedDecorId?' selected':'') + (affordable?'':' disabled');
     div.innerHTML = `<span class="emoji">${d.emoji}</span>${d.name}<span class="growtime">${d.cost} 💰</span>`;
-    div.onclick = ()=>{
-      wrap.querySelectorAll('.crop-choice').forEach(x=>x.classList.remove('selected'));
-      div.classList.add('selected'); buildSelectedDecorId = d.id;
-    };
+    if(affordable){
+      div.onclick = ()=>{
+        wrap.querySelectorAll('.crop-choice').forEach(x=>x.classList.remove('selected'));
+        div.classList.add('selected'); buildSelectedDecorId = d.id;
+      };
+    }
     wrap.appendChild(div);
   });
-  const nextLocked = nextLockedDecoration();
-  document.getElementById('buildProgressNote').textContent = nextLocked
-    ? `You've unlocked ${unlocked.length} of ${DECORATIONS.length} decorations (by points). Reach ${nextLocked.minPoints} team points to unlock ${nextLocked.emoji} ${nextLocked.name}. Each decoration also costs coins — sell crops at the Market to afford them!`
-    : `🎉 All ${DECORATIONS.length} decorations unlocked by points — make sure you have enough coins too!`;
   renderPlacedDecorList();
 }
 document.getElementById('buildPlaceBtn').onclick = ()=>{
   if(!buildSelectedDecorId){ toast('No decoration selected.'); return; }
+  const def = decorInfo(buildSelectedDecorId);
+  if((state.coins||0) < def.cost){ toast(`⚠️ Not enough coins — need ${def.cost}, have ${state.coins||0}.`); return; }
   placementModeActive = true; placementDecorationId = buildSelectedDecorId;
   document.getElementById('buildOverlay').style.display='none';
-  toast(`📍 Click any open grass tile to place your ${decorInfo(placementDecorationId).name}! Press Esc to cancel.`);
+  toast(`📍 Click any open grass tile to place your ${def.name}! Press Esc to cancel.`);
 };
 function renderPlacedDecorList(){
   const wrap = document.getElementById('placedDecorList');
@@ -1871,6 +1978,7 @@ function renderExpandTab(){
       const btn = document.createElement('button');
       btn.className = 'btn-gold';
       btn.textContent = `Unlock for ${zone.cost} 💰`;
+      btn.disabled = (state.coins||0) < zone.cost;
       btn.onclick = async ()=>{
         const res = await apiCall('/api/expand', {playerId:myPlayerId, expansionId:zone.id});
         if(res.ok){ confettiBurst(); toast(`🗺️ ${zone.name} unlocked! ${zone.tiles.length} new plots are ready to till.`); renderExpandTab(); }
@@ -1907,7 +2015,7 @@ document.getElementById('btnExport').onclick = ()=>{
 
 /* ============ New Season ============ */
 document.getElementById('btnReset').onclick = async ()=>{
-  if(!confirm('Start a brand new season for the whole team? This clears crops, seeds, coins, farm expansions, animal happiness, inventory, decorations, and kudos (everyone stays on the farm).')) return;
+  if(!confirm('Start a brand new season for the whole team? This clears crops, seeds, coins, field expansions, animal happiness, inventory, decorations, and kudos (everyone stays on the farm).')) return;
   const res = await apiCall('/api/reset-season', {});
   if(res.ok){ toast('🚜 New season started for everyone!'); lastKudosTs = Date.now(); }
   renderHUD();

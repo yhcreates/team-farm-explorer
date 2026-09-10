@@ -8,58 +8,52 @@ decorate and expand your farm — all together, in real time.
 
 ## 🆕 What's in this update
 
-1. **Photo sizing controls.** Uploaded photos now render noticeably larger
-   on your farmer's face (so they're actually recognizable at a glance), and
-   the character creator now has a **zoom slider** — drag it to reframe your
-   headshot tighter or looser before joining/saving. Re-upload the same
-   photo anytime to adjust the zoom again.
-2. **Every crop now has a purpose.** Previously, sunflowers, pumpkins, and
-   tomatoes had no animal to feed them and just sat in the basket. Now
-   there's a **Market** — walk up to the stall (near the barn) or click
-   "Open Market" anytime, and sell ANY harvested crop or animal product for
-   coins. Slower-growing crops (which tie up a plot longer) sell for more.
-3. **Coins fund Build & Expand.** Decorations now cost coins (in addition to
-   the existing points-based unlock tiers), and there's a brand-new
-   **"Expand Farm"** tab where the team can permanently unlock new plots of
-   farmland using coins — literally growing the size of your farm.
+1. **Clearer rules at a glance.** A new "Farm Loop" ribbon at the top of the
+   page always shows the whole game loop in one line: 💌 Kudos → 🌱 Seed →
+   🌾 Grow → 🧺 Harvest → 💰 Sell/🍽️ Feed → 🏗️ Build & Expand. The How-to-Play
+   modal leads with the same summary before the detailed steps.
+2. **Photo repositioning.** The character creator's photo uploader is now a
+   real cropper: after uploading, **drag inside the circular preview** to
+   reposition your face, and use the zoom slider to get in closer. The final
+   crop is computed live as you drag.
+3. **Decorations cost coins only.** Removed the old "points tier" gate that
+   used to sit alongside the coin cost — every decoration can now be bought
+   the moment your team can afford it, full stop.
+4. **A much bigger canvas and a much bigger field.** The farm is now
+   1144×728 (up from 936×624), and the farmland grid grew from 24 tiles to
+   **84 tiles** — 48 open from the start, plus 36 more behind two
+   purchasable "Field Expansion" tiers. Crucially, the locked tiles are part
+   of the *same* big field (not a separate zone elsewhere on the map) — they
+   render right there as greyed-out soil with a 🔒 and the unlock cost
+   printed directly on the tile, so the rule is obvious without opening any
+   menu.
 
 ---
 
-## 💰 The new Market economy
+## 🗺️ The new field
 
-| Item | Sells for |
-|---|---|
-| 🥕 Carrot | 4 coins |
-| 🌽 Corn | 5 coins |
-| 🍅 Tomato | 6 coins |
-| 🌻 Sunflower | 8 coins |
-| 🍓 Strawberry | 10 coins |
-| 🎃 Pumpkin | 14 coins |
-| 🥚 Eggs | 8 coins |
-| 🥛 Milk | 12 coins |
-| 🧶 Wool | 16 coins |
+| Section | Tiles | Status |
+|---|---|---|
+| Open field | 48 | Available from the start |
+| Field Expansion I | 18 | 🔒 200 coins to unlock |
+| Field Expansion II | 18 | 🔒 400 coins to unlock |
 
-Coins are shared by the whole team (like the seed bank and harvest basket).
-Spend them in **🏗️ Build & Expand**:
-- **Decorations** now require both a points tier (from the team's total
-  harvests + animal products) AND a coin payment — ranging from 15 coins
-  (Flower Patch, Garden Rock) up to 250 coins (Rainbow Arch, Team Statue).
-- **Farm Expansions** permanently unlock new farmland:
-  - 🗺️ **South Field** — 8 new plots, 150 coins
-  - 🗺️ **East Field** — 6 new plots, 300 coins
+Once unlocked, an expansion's tiles work exactly like the rest of the field
+— till, plant, water, harvest — forever (until a "New Season" reset).
 
-Once unlocked, an expansion's tiles work exactly like the original field —
-till, plant, water, harvest — forever (well, until a "New Season" reset).
+## 💰 The Market economy (recap)
 
----
+Every crop and animal product sells for coins — including sunflowers,
+pumpkins, and tomatoes, which no animal eats. Coins fund **Build & Expand**:
+- **Decorations** — coins only, 15 to 250 depending on the item.
+- **Field Expansions** — permanently grow the farm itself (see table above).
 
 ## 🌱 The kudos economy (recap)
 
 Seeds only come from sending kudos (fully random, decoupled from the
-sentiment you pick). Sentiments are tailorable — add your own custom tags
-anytime. Animals are still picky eaters (chicken/corn, cow/carrot,
-sheep/strawberry) for their happiness-and-product loop, but now every crop
-also has a Market buyer, so nothing grown is ever wasted.
+sentiment you pick — sentiments are tailorable, add your own anytime).
+Animals are picky eaters (chicken/corn, cow/carrot, sheep/strawberry) and
+also wander their pen on their own.
 
 ## ⏱️ Growth timing (recap)
 
@@ -68,11 +62,10 @@ Watering is an optional booster (up to 30% faster).
 
 ## ⚠️ Persistence still matters
 
-Because growth can take up to a week, the server persists everything
-(including coins and unlocked expansions) to `farm-state.json` after every
-action — but this only survives restarts if your hosting keeps that file
-around. Free hosting tiers with no persistent disk will lose progress; see
-hosting guidance below.
+Because growth can take up to a week, the server persists everything to
+`farm-state.json` after every action — but this only survives restarts if
+your hosting keeps that file around. Free hosting tiers with no persistent
+disk will lose progress; see hosting guidance below.
 
 ---
 
@@ -83,7 +76,7 @@ team-farm-explorer/
 ├── server.js         # Multiplayer server (state, economy, market, expansions, growth, animal AI, persistence)
 ├── package.json
 ├── public/
-│   └── index.html    # Game client (rendering, photo upload+zoom, Market, Build & Expand UI)
+│   └── index.html    # Game client (rendering, photo drag/zoom editor, Market, Build & Expand UI)
 └── README.md
 ```
 
@@ -98,8 +91,8 @@ Zero external dependencies — only Node's built-in `http` and `fs` modules.
    `package.json`, `README.md`, and the `public` folder (same-named files
    overwrite automatically).
 3. Commit — your host auto-redeploys. This resets the current season's
-   progress (crops, coins, expansions, kudos) — your farmer roster and
-   custom sentiments stay.
+   progress (crops, coins, expansions, kudos) — farmer roster and custom
+   sentiments stay.
 
 ## 🚀 First-time deploy (recommended: Render Starter + persistent disk)
 

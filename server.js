@@ -11,25 +11,32 @@
        fully decoupled from the seed reward.
      - Planting spends a seed of the chosen crop type.
      - Harvesting fills a shared Harvest Basket.
-     - Animals are picky: each only accepts its own liked crop
-       (chicken/corn, cow/carrot, sheep/strawberry).
-     - NEW: The Market — drop ANY harvested crop or animal
-       product at the Market stall to sell it for coins. This
-       gives every crop a purpose, including the ones no animal
-       eats (sunflower, pumpkin, tomato). Coins are the team's
-       shared currency, spent on:
-         - Decorations (now cost coins, in addition to the
-           existing points-based unlock tiers)
-         - Farm Expansions — permanently unlock new plots of
-           farmland beyond the original field, using coins.
+     - Animals are picky: each only accepts its own liked crop.
+     - The Market: sell ANY harvested crop or animal product for
+       coins — every crop has a purpose, including the ones no
+       animal eats (sunflower, pumpkin, tomato).
+     - Coins are spent on:
+         - Decorations — coins ONLY (no separate "points" gate;
+           any decoration can be bought the moment the team can
+           afford it).
+         - Field Expansions — permanently unlock more of the
+           farm's own farmland grid (NOT separate detached zones
+           elsewhere on the map — the locked tiles are part of
+           the same big field, just visually locked until bought).
 
    GROWTH TIMING: real calendar days (max ~7 for the slowest crop).
    Watering is an optional booster (up to 3x, 10% faster each).
 
    ANIMALS WANDER within their pen on an independent timer.
 
-   FARMER PHOTOS: an optional uploaded photo (resized/compressed
-   client-side to a data URL) renders on a farmer's face.
+   FARMER PHOTOS: an optional uploaded photo (cropped/zoomed and
+   compressed client-side to a data URL) renders enlarged on a
+   farmer's face.
+
+   MAP: a bigger, single contiguous farmland block (84 tiles) —
+   48 open by default, 36 locked behind two Field Expansion tiers.
+   See buildGrid() below; verified for full BFS reachability of
+   every interactive tile before being wired into this server.
    ============================================================ */
 
 const http = require('http');
@@ -39,7 +46,7 @@ const path = require('path');
 const PORT = process.env.PORT || 3000;
 
 /* ============ Game constants ============ */
-const ROWS = 12, COLS = 18;
+const ROWS = 14, COLS = 22;
 const HAPPY_MAX = 5;
 const MAX_WATER_BOOSTS = 3;
 const REDUCTION_PER_WATER = 0.10;
@@ -55,9 +62,7 @@ const CROP_GROWTH_MS = {
   pumpkin:    7.0 * DAY_MS
 };
 
-/* Every crop now has a purpose even if no animal eats it: sell it
-   at the Market. Prices scale roughly with grow time, so slower
-   crops (which tie up a farmland plot longer) are worth more. */
+/* Every crop is sellable — including the ones no animal eats. */
 const SELL_PRICES = {
   carrot: 4, corn: 5, tomato: 6, sunflower: 8, strawberry: 10, pumpkin: 14,
   egg: 8, milk: 12, wool: 16
@@ -65,12 +70,12 @@ const SELL_PRICES = {
 const SELLABLE_IDS = Object.keys(SELL_PRICES);
 
 const ANIMALS_DEF = [
-  {id:'chicken1', type:'chicken', r:5, c:11, likes:'corn',       product:'egg',  productName:'eggs'},
-  {id:'chicken2', type:'chicken', r:5, c:14, likes:'corn',       product:'egg',  productName:'eggs'},
-  {id:'cow',      type:'cow',     r:7, c:12, likes:'carrot',     product:'milk', productName:'milk'},
-  {id:'sheep',    type:'sheep',   r:7, c:14, likes:'strawberry', product:'wool', productName:'wool'}
+  {id:'chicken1', type:'chicken', r:5, c:18, likes:'corn',       product:'egg',  productName:'eggs'},
+  {id:'chicken2', type:'chicken', r:5, c:20, likes:'corn',       product:'egg',  productName:'eggs'},
+  {id:'cow',      type:'cow',     r:8, c:19, likes:'carrot',     product:'milk', productName:'milk'},
+  {id:'sheep',    type:'sheep',   r:10,c:19, likes:'strawberry', product:'wool', productName:'wool'}
 ];
-const PEN_BOUNDS = { rMin:4, rMax:8, cMin:10, cMax:15 };
+const PEN_BOUNDS = { rMin:4, rMax:11, cMin:18, cMax:20 };
 
 const DEFAULT_SENTIMENTS = [
   {id:'sent_positivity',  emoji:'🌟', label:'Positivity'},
@@ -86,39 +91,34 @@ const DEFAULT_SENTIMENTS = [
 ];
 const MAX_SENTIMENTS = 40;
 
-/* Decorations still unlock progressively via team "points"
-   (harvests+products) as before, but NOW also cost coins to
-   actually place — giving coins a second sink beyond expansions. */
+/* Decorations now cost ONLY coins — no separate "points" unlock
+   tier. This removes a confusing double-gate that existed before. */
 const DECORATIONS_DEF = [
-  {id:'flowerpatch', minPoints:0,  cost:15},
-  {id:'rock',        minPoints:0,  cost:15},
-  {id:'haybale',     minPoints:8,  cost:30},
-  {id:'scarecrow',   minPoints:8,  cost:30},
-  {id:'fountain',    minPoints:20, cost:60},
-  {id:'bench',       minPoints:20, cost:60},
-  {id:'lantern',     minPoints:40, cost:120},
-  {id:'tent',        minPoints:40, cost:120},
-  {id:'rainbow',     minPoints:70, cost:250},
-  {id:'statue',      minPoints:70, cost:250}
+  {id:'flowerpatch', cost:15},
+  {id:'rock',        cost:15},
+  {id:'haybale',     cost:30},
+  {id:'scarecrow',   cost:30},
+  {id:'fountain',    cost:60},
+  {id:'bench',       cost:60},
+  {id:'lantern',     cost:120},
+  {id:'tent',        cost:120},
+  {id:'rainbow',     cost:250},
+  {id:'statue',      cost:250}
 ];
-const DECORATION_IDS = {}; // id -> minPoints (kept for quick lookup, mirrors old shape)
-DECORATIONS_DEF.forEach(d=> DECORATION_IDS[d.id]=d.minPoints);
 function decorationDef(id){ return DECORATIONS_DEF.find(d=>d.id===id); }
 
-/* Farm Expansions: permanently convert a fixed set of currently-
-   grass tiles into tillable farmland once the team pays the coin
-   cost. Tile coordinates are hand-picked open grass areas below/
-   beside the original field and pen that don't collide with any
-   other feature (verified against buildGrid() below). */
+/* Field Expansions: the farmland grid is ONE big contiguous block
+   (84 tiles). 48 tiles are open from the start; the remaining 36
+   are split into two purchasable tiers that unlock more of the
+   SAME field (not a separate detached area). */
+function buildExpansionTiles(cMin, cMax){
+  const tiles = [];
+  for(let r=4; r<=9; r++) for(let c=cMin; c<=cMax; c++) tiles.push([r,c]);
+  return tiles;
+}
 const EXPANSION_ZONES = [
-  {
-    id:'south_field', name:'South Field', cost:150,
-    tiles: [[9,5],[9,6],[9,7],[9,8],[10,5],[10,6],[10,7],[10,8]]
-  },
-  {
-    id:'east_field', name:'East Field', cost:300,
-    tiles: [[10,10],[10,11],[10,12],[10,13],[10,14],[10,15]]
-  }
+  { id:'field_expansion_1', name:'Field Expansion I',  cost:200, tiles: buildExpansionTiles(10,12) },
+  { id:'field_expansion_2', name:'Field Expansion II', cost:400, tiles: buildExpansionTiles(13,15) }
 ];
 function expansionZoneAt(r,c){
   return EXPANSION_ZONES.find(z => z.tiles.some(([zr,zc])=>zr===r&&zc===c));
@@ -127,41 +127,69 @@ function expansionZoneAt(r,c){
 const OBSTACLE_TYPES = new Set(['tree','house','barn','fence','water']);
 const MAX_PHOTO_DATA_URL_LENGTH = 120000;
 
+/* ============ Map (verified for full reachability — see notes) ============
+   Layout summary:
+     - House top-left, Barn top-right (1 row tall by design, so the
+       row below it stays open as a walking corridor to the pen —
+       a taller barn here would seal off the pen with no way around).
+     - Kudos board + Market stall along the top path, between house/barn.
+     - One big farmland field (rows4-9, cols2-15 = 84 tiles): open
+       cols2-9 (48 tiles) + two locked expansion tiers cols10-12 and
+       cols13-15 (18 tiles each).
+     - Animal pen to the right (cols18-20, rows4-11 = 24 tiles),
+       entered via a single top-corridor gap at (3,20).
+     - Small pond bottom-left for visual flavor.
+   ============================================================ */
 function buildGrid(){
   const g = [];
   for(let r=0;r<ROWS;r++) g.push(new Array(COLS).fill('grass'));
   for(let r=0;r<ROWS;r++){ g[r][0]='tree'; g[r][COLS-1]='tree'; }
   for(let c=0;c<COLS;c++){ g[0][c]='tree'; g[ROWS-1][c]='tree'; }
+  // house
   for(let r=1;r<=2;r++) for(let c=1;c<=3;c++) g[r][c]='house';
-  for(let r=1;r<=2;r++) for(let c=13;c<=15;c++) g[r][c]='barn';
-  g[1][8]='kudos';
-  g[2][9]='market'; // Market stall — open grass tile, doesn't collide with anything else
-  for(let c=4;c<=7;c++) g[1][c]='path';
-  g[1][12]='path'; g[2][12]='path';
-  for(let c=1;c<=8;c++){ g[3][c]='fence'; g[8][c]='fence'; }
-  for(let r=3;r<=8;r++){ g[r][1]='fence'; g[r][8]='fence'; }
-  for(let r=4;r<=7;r++) for(let c=2;c<=7;c++) g[r][c]='farmland';
-  g[3][2]='path'; g[8][4]='path';
-  for(let c=9;c<=16;c++){ g[3][c]='fence'; g[9][c]='fence'; }
-  for(let r=3;r<=9;r++){ g[r][9]='fence'; g[r][16]='fence'; }
-  for(let r=4;r<=8;r++) for(let c=10;c<=15;c++) g[r][c]='pen';
-  g[3][12]='path'; g[9][12]='path';
-  g[9][2]='water'; g[9][3]='water'; g[10][2]='water'; g[10][3]='water';
+  // barn (1 row tall by design — see note above)
+  for(let c=17;c<=19;c++) g[1][c]='barn';
+  // top path connecting house -> kudos -> market -> barn corridor
+  for(let c=4;c<=9;c++) g[1][c]='path';
+  g[1][10]='kudos';
+  g[1][11]='path';
+  g[1][12]='market';
+  for(let c=13;c<=16;c++) g[1][c]='path';
+  // field fence ring (cols1-16)
+  for(let c=1;c<=16;c++){ g[3][c]='fence'; g[10][c]='fence'; }
+  for(let r=3;r<=10;r++){ g[r][1]='fence'; g[r][16]='fence'; }
+  // field interior farmland (rows4-9, cols2-15) -- 84 tiles total
+  for(let r=4;r<=9;r++) for(let c=2;c<=15;c++) g[r][c]='farmland';
+  // fence gaps (entrances)
+  g[3][4]='path'; g[10][8]='path';
+  // pen fence ring (cols17-20); top fence only spans 17-19, leaving
+  // col20 open at row3 as the single entrance corridor
+  for(let c=17;c<=19;c++) g[3][c]='fence';
+  for(let c=17;c<=20;c++) g[12][c]='fence';
+  for(let r=3;r<=12;r++) g[r][17]='fence';
+  g[3][20]='path';
+  // interior pen rows4-11, cols18-20 -- 24 tiles
+  for(let r=4;r<=11;r++) for(let c=18;c<=20;c++) g[r][c]='pen';
+  // pond
+  g[11][2]='water'; g[11][3]='water'; g[12][2]='water'; g[12][3]='water';
   return g;
 }
 const GRID = buildGrid();
 function tileAt(r,c){ return GRID[r] && GRID[r][c]; }
 
-/* A tile is plantable farmland if it's part of the original field,
-   OR it's inside an expansion zone the team has already unlocked. */
+/* A tile is plantable farmland if it's the base 'farmland' type AND
+   (it's not part of any expansion zone, OR its zone has been
+   unlocked). Locked zone tiles are still typed 'farmland' in the
+   grid (so they render as farmland, just visually locked) but are
+   NOT interactable until purchased. */
 function isFarmlandTile(r,c){
-  if(tileAt(r,c) === 'farmland') return true;
+  if(tileAt(r,c) !== 'farmland') return false;
   const zone = expansionZoneAt(r,c);
-  if(zone && state.unlockedExpansions[zone.id]) return true;
-  return false;
+  if(!zone) return true;
+  return !!state.unlockedExpansions[zone.id];
 }
 
-const SPAWN_SPOTS = [[1,5],[1,4],[1,6],[1,7],[2,6]];
+const SPAWN_SPOTS = [[1,4],[1,5],[1,6],[1,7],[1,8]];
 
 /* ============ Shared in-memory state ============ */
 function emptySeedBank(){
@@ -178,7 +206,7 @@ function defaultState(){
     seeds: emptySeedBank(),
     inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0, egg:0, milk:0, wool:0},
     coins: 0,
-    unlockedExpansions: {}, // expansionId -> true
+    unlockedExpansions: {},
     sentiments: DEFAULT_SENTIMENTS.map(s=>({...s})),
     kudosLog:[],
     stats:{givers:{}, contributors:{}, caretakers:{}, sellers:{}},
@@ -223,7 +251,6 @@ function scheduleSave(){
   setTimeout(saveStateToDisk, 250);
 }
 function bump(){ state.version++; scheduleSave(); }
-function points(){ return state.totalHarvests + state.totalProducts; }
 
 const MAX_KUDOS_LOG = 300;
 
@@ -366,7 +393,7 @@ function apiTill(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
   const {r,c} = body;
-  if(!isValidCoord(r,c) || !isFarmlandTile(r,c)) return {ok:false, error:'Not farmland.'};
+  if(!isValidCoord(r,c) || !isFarmlandTile(r,c)) return {ok:false, error:'Not farmland (or still locked).'};
   const cell = getOrCreateCell(r,c);
   if(cell.stage!==0) return {ok:false, error:'Already tilled.'};
   cell.stage = 1;
@@ -378,7 +405,7 @@ function apiPlant(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
   const {r,c,cropId} = body;
-  if(!isValidCoord(r,c) || !isFarmlandTile(r,c)) return {ok:false, error:'Not farmland.'};
+  if(!isValidCoord(r,c) || !isFarmlandTile(r,c)) return {ok:false, error:'Not farmland (or still locked).'};
   if(!CROP_IDS.includes(cropId)) return {ok:false, error:'Bad crop.'};
   const cell = getOrCreateCell(r,c);
   if(cell.stage!==1) return {ok:false, error:'Not ready to plant.'};
@@ -443,9 +470,6 @@ function apiFeed(body){
   return {ok:true, fed:likedCrop, gain:FEED_GAIN, produced};
 }
 
-/* Sells one or more units of a single harvested crop or animal
-   product for coins. Every crop (even ones no animal eats) is
-   sellable, so nothing grown is ever a dead end. */
 function apiSell(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -499,8 +523,7 @@ function apiKudos(body){
   return {ok:true, seedAwarded};
 }
 
-/* Decorations now require BOTH the points-based unlock tier AND
-   a coin payment, deducted atomically (never partially charged). */
+/* Decorations now check ONLY the coin cost — no points-tier gate. */
 function apiDecorate(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -508,7 +531,6 @@ function apiDecorate(body){
   if(!isValidCoord(r,c) || tileAt(r,c)!=='grass') return {ok:false, error:'Decorations must go on open grass.'};
   const def = decorationDef(decorId);
   if(!def) return {ok:false, error:'Unknown decoration.'};
-  if(def.minPoints > points()) return {ok:false, error:'Not unlocked yet — grow more crops/products first.'};
   if(state.coins < def.cost) return {ok:false, error:`Not enough coins — need ${def.cost}, have ${state.coins}. Sell some crops at the Market!`};
   const key = cellKey(r,c);
   if(state.decorations[key]) return {ok:false, error:'Tile already decorated.'};
@@ -528,10 +550,6 @@ function apiRemoveDecor(body){
   return {ok:true};
 }
 
-/* Permanently unlocks an expansion zone's tiles as farmland, once
-   the team has enough coins. Idempotent: re-unlocking an already-
-   unlocked zone is a no-op success (not an error), since two
-   players might click "unlock" nearly simultaneously. */
 function apiExpand(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -643,5 +661,6 @@ process.on('SIGTERM', flushAndExit);
 module.exports = {
   server, CROP_GROWTH_MS, MAX_WATER_BOOSTS, REDUCTION_PER_WATER, CROP_IDS,
   STATE_FILE, saveStateToDisk, PEN_BOUNDS, tickAnimalWander,
-  MAX_PHOTO_DATA_URL_LENGTH, SELL_PRICES, EXPANSION_ZONES, DECORATIONS_DEF
+  MAX_PHOTO_DATA_URL_LENGTH, SELL_PRICES, EXPANSION_ZONES, DECORATIONS_DEF,
+  ROWS, COLS, buildGrid
 };

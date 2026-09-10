@@ -1,7 +1,7 @@
 {
   "name": "team-farm-explorer-multiplayer",
-  "version": "5.0.0",
-  "description": "Real-time multiplayer team-bonding farm game — kudos-driven seed economy, tailorable sentiments, multi-day growth with persistence, wandering animals, farmer photos, and a Market/coin economy for selling crops and expanding the farm.",
+  "version": "6.0.0",
+  "description": "Real-time multiplayer team-bonding farm game — kudos-driven seed economy, tailorable sentiments, multi-day growth with persistence, wandering animals, farmer photos with drag/zoom cropping, a Market/coin economy, coins-only decorations, and one large expandable farmland field.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
