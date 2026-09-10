@@ -10,7 +10,7 @@
     --card-bg:#ffffffee; --accent:#ff9f43; --accent2:#ff6b6b;
     --green:#4c9a5f; --green-dark:#357a45; --text:#2d3436;
     --radius:16px; --shadow:0 8px 20px rgba(0,0,0,0.12);
-    --content-max:1360px;
+    --content-max:1360px; --gold:#d4a017;
   }
   *{box-sizing:border-box;}
   body{
@@ -21,10 +21,7 @@
   header{ text-align:center; padding:20px 16px 6px; }
   header h1{ margin:0; font-size:2rem; text-shadow:0 2px 0 rgba(255,255,255,0.6); }
   header p{ margin:4px 0 0; color:#446; font-size:0.92rem; }
-  #farmNameDisplay{
-    margin:6px 0 0; font-size:1.05rem; font-weight:700; color:#5a3a1a;
-    display:none;
-  }
+  #farmNameDisplay{ margin:6px 0 0; font-size:1.05rem; font-weight:700; color:#5a3a1a; display:none; }
 
   .conn-badge{
     display:inline-flex; align-items:center; gap:6px; font-size:0.75rem; font-weight:700;
@@ -56,10 +53,12 @@
     padding:7px 12px; font-size:0.82rem; font-weight:600; box-shadow:0 3px 0 rgba(0,0,0,0.15);
   }
   button:active{ transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,0.15); }
+  button:disabled{ opacity:0.4; cursor:not-allowed; }
   .btn-primary{ background:var(--accent); color:#fff; }
   .btn-secondary{ background:#dfe6e9; color:#2d3436; }
   .btn-danger{ background:var(--accent2); color:#fff; }
   .btn-kudos{ background:#ff6b9d; color:#fff; font-size:0.95rem; padding:10px 18px; }
+  .btn-gold{ background:linear-gradient(180deg,#ffe27a,var(--gold)); color:#4a3600; }
 
   main{ max-width:var(--content-max); margin:0 auto 40px; padding:0 16px; }
 
@@ -69,6 +68,13 @@
   }
   .kudos-cta .msg{ font-size:0.88rem; font-weight:600; color:#7a3b1a; }
   .kudos-cta .msg span{ font-weight:800; }
+
+  .coin-bar{
+    margin-top:10px; display:flex; align-items:center; justify-content:space-between;
+    gap:12px; flex-wrap:wrap; background:linear-gradient(135deg,#fff9e0,#ffedb0);
+  }
+  .coin-bar .msg{ font-size:0.9rem; font-weight:700; color:#6b5000; }
+  .coin-bar .msg .coinnum{ font-size:1.15rem; }
 
   .layout-grid{
     display:grid; grid-template-columns:1fr 350px; gap:20px; align-items:start; margin-top:16px;
@@ -83,16 +89,11 @@
   #gameCanvas{
     background:#8fd17c; border:10px solid #7a5230; border-radius:14px;
     box-shadow:var(--shadow); image-rendering:pixelated; max-width:100%; height:auto;
-    /* Custom farm-themed cursors: a small hoe for normal/interactive hover,
-       browser's built-in "not-allowed" for blocked tiles (kept native since
-       it communicates "blocked" more universally than any custom icon). */
     cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(45 16 16)"><rect x="14" y="4" width="4" height="20" rx="1.5" fill="%236b4226" stroke="%233b2412" stroke-width="1"/><path d="M8 4 L24 4 L22 10 L10 10 Z" fill="%23b0b0b0" stroke="%23707070" stroke-width="1"/></g></svg>') 8 8, auto;
   }
   .controls-hint{ text-align:center; font-size:0.82rem; color:#446; margin-top:8px; }
 
-  .action-toolbar{
-    margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
-  }
+  .action-toolbar{ margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
   .act-btn{
     display:flex; flex-direction:column; align-items:center; gap:2px; min-width:84px;
     background:#eef3ea; color:#2d3436; font-size:1.3rem; font-weight:700; padding:8px 10px 6px;
@@ -116,12 +117,13 @@
   .inventory-panel{ margin-top:14px; }
   .inv-group{ margin-bottom:10px; }
   .inv-group:last-child{ margin-bottom:0; }
-  .inv-group-title{ font-size:0.72rem; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.03em; margin-bottom:4px; }
+  .inv-group-title{ font-size:0.72rem; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.03em; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; }
   .inv-row{ display:flex; flex-wrap:wrap; gap:12px; font-size:0.9rem; }
   .inv-item{ display:flex; align-items:center; gap:5px; font-weight:600; }
   .inv-item .n{ color:var(--green-dark); }
   .inv-item.zero .n{ color:#bbb; }
   .inv-item.zero{ opacity:0.55; }
+  .sell-price-tag{ font-size:0.65rem; color:#a67c00; font-weight:700; }
 
   .panel{ background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; }
   .panel h3{ margin-top:0; }
@@ -152,6 +154,7 @@
     justify-content:center; z-index:50; padding:16px; }
   .modal{ background:#fff; border-radius:18px; max-width:480px; width:100%; padding:22px;
     box-shadow:0 20px 50px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto; position:relative; }
+  .modal.wide{ max-width:600px; }
   .modal h2{ margin-top:0; }
   .modal label{ display:block; font-size:0.85rem; font-weight:600; margin:12px 0 4px; }
   .modal input[type=text], .modal select, .modal textarea{
@@ -184,6 +187,10 @@
   .photo-upload-btn{ background:#e8f0e0; color:#357a45; }
   .photo-remove-btn{ background:#ffe8e8; color:#a12727; font-size:0.76rem; padding:6px 10px; }
   .photo-hint{ font-size:0.72rem; color:#888; margin-top:4px; }
+  .photo-zoom-row{ display:none; align-items:center; gap:10px; margin-top:8px; }
+  .photo-zoom-row.show{ display:flex; }
+  .photo-zoom-row input[type=range]{ flex:1; }
+  .photo-zoom-row .zoomlabel{ font-size:0.75rem; color:#666; min-width:40px; text-align:right; }
 
   .crop-choices{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px; }
   .crop-choice{ border:2px solid transparent; border-radius:10px; padding:8px 4px; text-align:center; cursor:pointer;
@@ -209,13 +216,35 @@
   .roster-item canvas{ background:#dff5d0; border-radius:8px; }
   .roster-item .rname{ flex:1; font-weight:600; font-size:0.88rem; }
   .roster-item button{ background:none; box-shadow:none; color:#c0392b; font-size:0.95rem; padding:2px 6px; }
+
+  .sell-list{ display:flex; flex-direction:column; gap:8px; margin-top:8px; max-height:320px; overflow-y:auto; }
+  .sell-row{ display:flex; align-items:center; gap:10px; background:#f9f9f9; border-radius:10px; padding:8px 12px; }
+  .sell-row .semoji{ font-size:1.4rem; }
+  .sell-row .sinfo{ flex:1; }
+  .sell-row .sname{ font-weight:700; font-size:0.88rem; }
+  .sell-row .sprice{ font-size:0.74rem; color:#a67c00; }
+  .sell-row .scount{ font-size:0.74rem; color:#666; }
+  .sell-row button{ background:var(--btn-gold, linear-gradient(180deg,#ffe27a,#d4a017)); color:#4a3600; font-size:0.78rem; padding:6px 10px; }
+
+  .expand-list{ display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+  .expand-row{ background:#f4f6f8; border-radius:12px; padding:10px 14px; }
+  .expand-row .ename{ font-weight:700; font-size:0.92rem; }
+  .expand-row .edetails{ font-size:0.78rem; color:#666; margin:4px 0 8px; }
+  .expand-row.unlocked{ background:#e5f6e9; }
+  .expand-row.unlocked .ename{ color:#1e7a3a; }
+
+  .tabs{ display:flex; gap:6px; margin-bottom:14px; border-bottom:2px solid #eee; }
+  .tab-btn{ background:none; box-shadow:none; padding:8px 14px; border-radius:10px 10px 0 0; color:#888; }
+  .tab-btn.active{ background:#fff3e0; color:var(--accent); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>🌾 Team Farm Explorer</h1>
-  <p>Recognize a teammate, earn a seed, grow it together, and feed the farm — live, in real time.</p>
+  <p>Recognize a teammate, earn a seed, grow it together, sell at the Market, and build your farm — live, in real time.</p>
   <p id="farmNameDisplay"></p>
   <div class="conn-badge offline" id="connBadge"><span class="conn-dot"></span><span id="connText">Connecting…</span></div>
 </header>
@@ -233,7 +262,7 @@
   <div class="toolbar">
     <button class="btn-secondary" id="btnHow">❓ How to Play</button>
     <button class="btn-secondary" id="btnMyFarmer">🎨 My Farmer</button>
-    <button class="btn-primary" id="btnBuild">🏗️ Build</button>
+    <button class="btn-primary" id="btnBuild">🏗️ Build & Expand</button>
     <button class="btn-secondary" id="btnExport">📄 Export Kudos Wall</button>
     <button class="btn-danger" id="btnReset">🔄 New Season</button>
   </div>
@@ -242,6 +271,11 @@
 <div class="bar kudos-cta">
   <div class="msg">💌 Seeds only come from sending kudos! Your team has earned <span id="totalSeedsMsg">0</span> seeds from <span id="totalKudosMsg">0</span> kudos so far.</div>
   <button class="btn-kudos" id="btnSendKudosCta">💌 Send a Kudos</button>
+</div>
+
+<div class="bar coin-bar">
+  <div class="msg">💰 Team Coins: <span class="coinnum" id="coinBalance">0</span> — sell crops & animal products at the Market to earn more!</div>
+  <button class="btn-gold" id="btnSellCta">💰 Open Market</button>
 </div>
 
 <main>
@@ -258,6 +292,7 @@
         <button class="act-btn" id="actWater" data-act="water">💧<span class="lbl">Water</span></button>
         <button class="act-btn" id="actHarvest" data-act="harvest">🧺<span class="lbl">Harvest</span><span class="act-badge" id="harvestBadge">0</span></button>
         <button class="act-btn" id="actFeed" data-act="feed">🍽️<span class="lbl">Feed Animal</span></button>
+        <button class="act-btn" id="actSell" data-act="sell">💰<span class="lbl">Sell</span></button>
         <button class="act-btn" id="actKudos" data-act="kudos">💌<span class="lbl">Leave Kudos</span></button>
       </div>
 
@@ -267,11 +302,11 @@
           <div class="inv-row" id="seedStrip"></div>
         </div>
         <div class="inv-group">
-          <div class="inv-group-title">🧺 Harvest Basket (feed to animals)</div>
+          <div class="inv-group-title"><span>🧺 Harvest Basket (feed to animals, or sell at the Market)</span></div>
           <div class="inv-row" id="harvestStrip"></div>
         </div>
         <div class="inv-group">
-          <div class="inv-group-title">🐾 Animal Products</div>
+          <div class="inv-group-title">🐾 Animal Products (sellable too!)</div>
           <div class="inv-row" id="productStrip"></div>
         </div>
       </div>
@@ -287,6 +322,7 @@
         <div class="board-col"><h4>Top Kudos Givers</h4><ul class="leaderboard-list" id="giverBoard"></ul></div>
         <div class="board-col"><h4>Master Growers</h4><ul class="leaderboard-list" id="growerBoard"></ul></div>
         <div class="board-col"><h4>Best Caretakers</h4><ul class="leaderboard-list" id="caretakerBoard"></ul></div>
+        <div class="board-col"><h4>Top Sellers 💰</h4><ul class="leaderboard-list" id="sellerBoard"></ul></div>
       </div>
     </div>
   </div>
@@ -313,7 +349,12 @@
           <button class="btn-secondary photo-upload-btn" id="photoUploadBtn">📷 Upload Photo</button>
           <button class="btn-secondary photo-remove-btn" id="photoRemoveBtn" style="display:none;">✕ Remove Photo</button>
         </div>
-        <p class="photo-hint">Your photo will show on your farmer's face instead of the default look. It's resized small automatically.</p>
+        <div class="photo-zoom-row" id="photoZoomRow">
+          <span style="font-size:0.75rem;color:#666;">🔍 Zoom</span>
+          <input type="range" id="photoZoomSlider" min="100" max="250" value="100" step="5">
+          <span class="zoomlabel" id="photoZoomLabel">100%</span>
+        </div>
+        <p class="photo-hint">Upload a headshot to show on your farmer's face — drag the zoom slider to frame it just right. Re-upload the same photo anytime to change the zoom again.</p>
         <label>Skin Tone</label>
         <div class="swatch-row" id="skinSwatches"></div>
         <label>Hair Color</label>
@@ -376,21 +417,32 @@
   </div>
 </div>
 
+<!-- Sell / Market Modal -->
+<div class="overlay" id="sellOverlay" style="display:none;">
+  <div class="modal">
+    <button class="modal-close-x" id="sellCloseX" title="Back to farm">✕</button>
+    <h2>💰 The Market</h2>
+    <p style="font-size:0.85rem;color:#555;">Sell your harvested crops and animal products for coins. Every crop has a buyer here — even the ones no animal eats!</p>
+    <div class="sell-list" id="sellList"></div>
+    <div class="modal-actions"><button class="btn-secondary" id="sellDone">Done</button></div>
+  </div>
+</div>
+
 <!-- How to Play Modal -->
 <div class="overlay" id="howOverlay" style="display:none;">
   <div class="modal">
     <h2>❓ How to Play</h2>
     <ol style="font-size:0.9rem; line-height:1.6;">
       <li>This farm is <b>live and shared</b> — everyone who opens this page joins the same farm and sees each other in real time.</li>
-      <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one <b>completely random</b> seed. Pick a sentiment describing WHY you're recognizing them — it has no effect on which seed you get. Click <b>"+ Add a new sentiment tag"</b> to create your own custom ones for the whole team to reuse.</li>
-      <li><b>Till</b> a soil plot, then <b>Plant</b> — but you can only plant crop types the team has seeds for.</li>
-      <li><b>Crops grow over real calendar days</b> (up to a week for the slowest). <b>Watering is optional</b> and speeds things up a little, but real days always have to pass.</li>
+      <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one completely random seed. Pick a sentiment describing WHY you're recognizing them — it has no effect on which seed you get. Add your own custom sentiment tags anytime.</li>
+      <li><b>Till</b> a soil plot, then <b>Plant</b> — only crop types the team has seeds for.</li>
+      <li><b>Crops grow over real calendar days</b> (up to a week for the slowest). Watering is optional and speeds things up a little.</li>
       <li><b>Harvest</b> once ready into the shared Harvest Basket.</li>
-      <li><b>Animals are picky eaters</b> — chickens ONLY eat corn 🌽, cows ONLY eat carrots 🥕, sheep ONLY eat strawberries 🍓. They also wander around the pen on their own!</li>
-      <li>Keep animals happy and they'll reward the team with eggs 🥚, milk 🥛, and wool 🧶.</li>
-      <li>Check the <b>leaderboards</b> — Top Kudos Givers keeps everyone accountable for remembering to recognize the team.</li>
-      <li>Open <b>🏗️ Build</b> to spend the team's harvest points on farm decorations.</li>
-      <li>Use <b>🎨 My Farmer</b> to change your name, look, or upload a photo anytime.</li>
+      <li><b>Feed animals</b> their favorite crop — chickens eat corn 🌽, cows eat carrots 🥕, sheep eat strawberries 🍓 — to earn eggs, milk, and wool. They also wander the pen on their own!</li>
+      <li><b>Sell EVERYTHING at the Market 💰</b> — including sunflowers, pumpkins, and tomatoes (which no animal eats) — for shared team coins. Walk to the Market stall (near the barn) or click "Open Market" anytime.</li>
+      <li><b>Spend coins in Build & Expand</b> — decorate your farm, or permanently unlock new plots of farmland to grow even more.</li>
+      <li>Check the <b>leaderboards</b>, including Top Sellers, to see how the whole team is contributing.</li>
+      <li>Use <b>🎨 My Farmer</b> to change your name, look, or upload/zoom a photo anytime.</li>
     </ol>
     <div class="modal-actions"><button class="btn-primary" id="howClose">Got it!</button></div>
   </div>
@@ -410,20 +462,31 @@
   </div>
 </div>
 
-<!-- Build Mode Modal -->
+<!-- Build & Expand Modal -->
 <div class="overlay" id="buildOverlay" style="display:none;">
-  <div class="modal">
-    <h2>🏗️ Build Mode</h2>
-    <p style="font-size:0.85rem;color:#555;" id="buildProgressNote">Unlock more decorations as your team grows more crops and animal products together!</p>
-    <div class="crop-choices" id="decorChoices"></div>
-    <p style="font-size:0.78rem;color:#888;margin-top:10px;">Pick a decoration above, then click <b>Place on Farm</b> and click any open grass tile to place it.</p>
-    <div class="modal-actions" style="justify-content:space-between;">
-      <button class="btn-secondary" id="buildClose">Close</button>
-      <button class="btn-primary" id="buildPlaceBtn">📍 Place on Farm</button>
+  <div class="modal wide">
+    <button class="modal-close-x" id="buildCloseX" title="Back to farm">✕</button>
+    <h2>🏗️ Build & Expand</h2>
+    <p style="font-size:0.85rem;color:#666;">Team coins: <b id="buildCoinDisplay">0</b> 💰</p>
+    <div class="tabs">
+      <button class="tab-btn active" id="tabDecorate">🌼 Decorations</button>
+      <button class="tab-btn" id="tabExpand">🗺️ Expand Farm</button>
     </div>
-    <div id="placedDecorSection" style="margin-top:16px;">
-      <h3 style="font-size:0.9rem;margin-bottom:6px;">Placed Decorations</h3>
-      <div class="roster-list" id="placedDecorList"></div>
+    <div class="tab-panel active" id="decoratePanel">
+      <p style="font-size:0.85rem;color:#555;" id="buildProgressNote">Unlock more decorations as your team grows more crops and animal products together!</p>
+      <div class="crop-choices" id="decorChoices"></div>
+      <p style="font-size:0.78rem;color:#888;margin-top:10px;">Pick a decoration above, then click <b>Place on Farm</b> and click any open grass tile to place it.</p>
+      <div class="modal-actions" style="justify-content:flex-start;">
+        <button class="btn-primary" id="buildPlaceBtn">📍 Place on Farm</button>
+      </div>
+      <div id="placedDecorSection" style="margin-top:16px;">
+        <h3 style="font-size:0.9rem;margin-bottom:6px;">Placed Decorations</h3>
+        <div class="roster-list" id="placedDecorList"></div>
+      </div>
+    </div>
+    <div class="tab-panel" id="expandPanel">
+      <p style="font-size:0.85rem;color:#555;">Permanently unlock new plots of farmland using team coins. Once unlocked, anyone can till and plant there — forever.</p>
+      <div class="expand-list" id="expandList"></div>
     </div>
   </div>
 </div>
@@ -432,10 +495,9 @@
 /* ============================================================
    Team Farm Explorer — Multiplayer Client
    ------------------------------------------------------------
-   Mirrors server.js's economy + growth-timing + animal-wander
-   rules for instant client-side UX, but the server is always the
-   authoritative source of truth — every action is re-validated
-   there.
+   Mirrors server.js's economy + growth-timing + animal-wander +
+   market/expansion rules for instant client-side UX, but the
+   server is always the authoritative source of truth.
    ============================================================ */
 
 /* ============ Constants (must match server) ============ */
@@ -451,13 +513,6 @@ const REDUCTION_PER_WATER = 0.10;
 const KUDOS_REMINDER_MS = 5 * 60 * 1000;
 const MAX_PHOTO_DATA_URL_LENGTH = 120000;
 
-/* Custom farm-themed cursor (a small hoe), used for anything
-   walkable/interactive. Kept as a shared constant so both the
-   stylesheet default and JS hover-state updates use the exact
-   same icon (JS must set it via inline style to override the
-   'not-allowed' state, so it needs the identical string). */
-const FARM_CURSOR = "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22><g transform=%22rotate(45 16 16)%22><rect x=%2214%22 y=%224%22 width=%224%22 height=%2220%22 rx=%221.5%22 fill=%22%236b4226%22 stroke=%22%233b2412%22 stroke-width=%221%22/><path d=%22M8 4 L24 4 L22 10 L10 10 Z%22 fill=%22%23b0b0b0%22 stroke=%22%23707070%22 stroke-width=%221%22/></g></svg>') 8 8, auto";
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CROP_GROWTH_MS = {
   carrot:     1.0 * DAY_MS,
@@ -466,6 +521,14 @@ const CROP_GROWTH_MS = {
   sunflower:  3.0 * DAY_MS,
   strawberry: 4.5 * DAY_MS,
   pumpkin:    7.0 * DAY_MS
+};
+
+/* Every crop is sellable at the Market now — including the ones
+   no animal eats (sunflower, pumpkin, tomato) — so nothing grown
+   is ever a dead end. Mirrors server.js SELL_PRICES exactly. */
+const SELL_PRICES = {
+  carrot: 4, corn: 5, tomato: 6, sunflower: 8, strawberry: 10, pumpkin: 14,
+  egg: 8, milk: 12, wool: 16
 };
 
 const CROPS = [
@@ -518,19 +581,40 @@ const LEVELS = [
   {min:70, name:'Legendary Farm 🌈'}
 ];
 
+/* Decorations now list a coin `cost` alongside the points-based
+   unlock tier (`minPoints`) — mirrors server.js DECORATIONS_DEF. */
 const DECORATIONS = [
-  {id:'flowerpatch', emoji:'🌼', name:'Flower Patch', minPoints:0},
-  {id:'rock',        emoji:'🪨', name:'Garden Rock',  minPoints:0},
-  {id:'haybale',     emoji:'🧺', name:'Hay Bale',     minPoints:8},
-  {id:'scarecrow',   emoji:'🎃', name:'Scarecrow',    minPoints:8},
-  {id:'fountain',    emoji:'⛲', name:'Fountain',     minPoints:20},
-  {id:'bench',       emoji:'🪑', name:'Bench',        minPoints:20},
-  {id:'lantern',     emoji:'🏮', name:'Lantern',      minPoints:40},
-  {id:'tent',        emoji:'⛺', name:'Party Tent',   minPoints:40},
-  {id:'rainbow',     emoji:'🌈', name:'Rainbow Arch', minPoints:70},
-  {id:'statue',      emoji:'🗿', name:'Team Statue',  minPoints:70}
+  {id:'flowerpatch', emoji:'🌼', name:'Flower Patch', minPoints:0,  cost:15},
+  {id:'rock',        emoji:'🪨', name:'Garden Rock',  minPoints:0,  cost:15},
+  {id:'haybale',     emoji:'🧺', name:'Hay Bale',     minPoints:8,  cost:30},
+  {id:'scarecrow',   emoji:'🎃', name:'Scarecrow',    minPoints:8,  cost:30},
+  {id:'fountain',    emoji:'⛲', name:'Fountain',     minPoints:20, cost:60},
+  {id:'bench',       emoji:'🪑', name:'Bench',        minPoints:20, cost:60},
+  {id:'lantern',     emoji:'🏮', name:'Lantern',      minPoints:40, cost:120},
+  {id:'tent',        emoji:'⛺', name:'Party Tent',   minPoints:40, cost:120},
+  {id:'rainbow',     emoji:'🌈', name:'Rainbow Arch', minPoints:70, cost:250},
+  {id:'statue',      emoji:'🗿', name:'Team Statue',  minPoints:70, cost:250}
 ];
 function decorInfo(id){ return DECORATIONS.find(d=>d.id===id); }
+
+/* Farm Expansions — mirrors server.js EXPANSION_ZONES exactly.
+   Tile lists MUST match the server so client-side rendering and
+   pathfinding agree with what the server will actually allow. */
+const EXPANSION_ZONES = [
+  { id:'south_field', name:'South Field', cost:150,
+    tiles: [[9,5],[9,6],[9,7],[9,8],[10,5],[10,6],[10,7],[10,8]] },
+  { id:'east_field', name:'East Field', cost:300,
+    tiles: [[10,10],[10,11],[10,12],[10,13],[10,14],[10,15]] }
+];
+function expansionZoneAt(r,c){
+  return EXPANSION_ZONES.find(z => z.tiles.some(([zr,zc])=>zr===r&&zc===c));
+}
+function isFarmlandTile(r,c){
+  if(grid[r]?.[c] === 'farmland') return true;
+  const zone = expansionZoneAt(r,c);
+  if(zone && state.unlockedExpansions && state.unlockedExpansions[zone.id]) return true;
+  return false;
+}
 
 const DIRS = { up:[-1,0], down:[1,0], left:[0,-1], right:[0,1] };
 const OBSTACLES = new Set(['tree','house','barn','fence','water']);
@@ -545,6 +629,7 @@ function buildGrid(){
   for(let r=1;r<=2;r++) for(let c=1;c<=3;c++) g[r][c]='house';
   for(let r=1;r<=2;r++) for(let c=13;c<=15;c++) g[r][c]='barn';
   g[1][8]='kudos';
+  g[2][9]='market';
   for(let c=4;c<=7;c++) g[1][c]='path';
   g[1][12]='path'; g[2][12]='path';
   for(let c=1;c<=8;c++){ g[3][c]='fence'; g[8][c]='fence'; }
@@ -569,17 +654,17 @@ function effectiveDurationMs(cell){
 }
 function readyAtMs(cell){ return (cell.plantedAt||0) + effectiveDurationMs(cell); }
 function isReady(cell){ return !!cell.type && Date.now() >= readyAtMs(cell); }
-function remainingMsFor(cell){ return Math.max(0, readyAtMs(cell) - Date.now()); }
 
 /* ============ Networking ============ */
-const PLAYER_ID_KEY = 'teamFarmPlayerId_v4';
+const PLAYER_ID_KEY = 'teamFarmPlayerId_v5';
 let myPlayerId = null;
 let state = {
   teamName:'', farmers:[], crops:{}, animals:[],
   seeds:{sunflower:0,carrot:0,strawberry:0,corn:0,pumpkin:0,tomato:0},
   inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0,egg:0,milk:0,wool:0},
-  sentiments:[], kudosLog:[], stats:{givers:{},contributors:{},caretakers:{}},
-  totalHarvests:0, totalProducts:0, totalKudos:0, decorations:{}
+  coins:0, unlockedExpansions:{},
+  sentiments:[], kudosLog:[], stats:{givers:{},contributors:{},caretakers:{},sellers:{}},
+  totalHarvests:0, totalProducts:0, totalKudos:0, totalCoinsEarned:0, decorations:{}
 };
 let isConnected = false;
 
@@ -620,19 +705,15 @@ function animalAt(r,c){ return state.animals.find(a=>a.r===r && a.c===c); }
 
 /* ============ Player runtime ============ */
 let player = { r:1, c:5, facing:'down', pixelX:5*TILE, pixelY:1*TILE, fromX:5*TILE, fromY:1*TILE, toX:5*TILE, toY:1*TILE, animProgress:1, path:[], onArrive:null };
-let remoteVisual = {};   // other farmers' smoothed pixel positions
-let animalVisual = {};   // animals' smoothed pixel positions (they wander server-side)
+let remoteVisual = {};
+let animalVisual = {};
 
 /* ============ Build Mode state ============ */
 let placementModeActive = false;
 let placementDecorationId = null;
 let hoverTile = { r:-1, c:-1 };
 
-/* ============ Farmer photo image cache ============
-   Farmer photos arrive as data: URLs in state. Canvas drawImage
-   needs a loaded Image object, so we cache one per farmer id and
-   only redraw with the photo once it's actually finished loading
-   (falls back to the default face in the meantime). */
+/* ============ Farmer photo image cache ============ */
 const photoImageCache = {};
 function getPhotoImage(farmer){
   if(!farmer || !farmer.photo) return null;
@@ -651,7 +732,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const COLORS = {
   grassA:'#8fd17c', grassB:'#82c96f', path:'#e3c69a', water:'#5bb8e0',
-  fenceWood:'#a9713f', farmU:'#9c7148', farmT:'#6e4d30', pen:'#e8dcb5', kudosPost:'#8b5a2b'
+  fenceWood:'#a9713f', farmU:'#9c7148', farmT:'#6e4d30', pen:'#e8dcb5',
+  kudosPost:'#8b5a2b', marketAwning:'#c0392b', marketWood:'#8b5a2b'
 };
 
 function roundRect(c,x,y,w,h,r){
@@ -665,7 +747,22 @@ function drawTile(r,c){
   const type = grid[r][c];
   const checker = (r+c)%2===0;
   switch(type){
-    case 'grass': ctx.fillStyle = checker?COLORS.grassA:COLORS.grassB; ctx.fillRect(x,y,TILE,TILE); break;
+    case 'grass': {
+      ctx.fillStyle = checker?COLORS.grassA:COLORS.grassB; ctx.fillRect(x,y,TILE,TILE);
+      const zone = expansionZoneAt(r,c);
+      if(zone && !(state.unlockedExpansions && state.unlockedExpansions[zone.id])){
+        // Locked expansion tile: subtle overlay + lock icon so it reads as
+        // "special/locked" without looking broken or like an obstacle.
+        ctx.fillStyle = 'rgba(80,60,20,0.18)'; ctx.fillRect(x,y,TILE,TILE);
+        ctx.strokeStyle = 'rgba(120,90,30,0.35)'; ctx.lineWidth=1;
+        ctx.strokeRect(x+2,y+2,TILE-4,TILE-4);
+        ctx.font=(TILE*0.32)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('🔒', x+TILE/2, y+TILE/2);
+      } else if(zone && state.unlockedExpansions[zone.id]){
+        drawFarmland(r,c,x,y);
+      }
+      break;
+    }
     case 'path': ctx.fillStyle = COLORS.path; ctx.fillRect(x,y,TILE,TILE); break;
     case 'tree':
       ctx.fillStyle = COLORS.grassA; ctx.fillRect(x,y,TILE,TILE);
@@ -692,6 +789,16 @@ function drawTile(r,c){
       ctx.strokeStyle='#8b5a2b'; ctx.strokeRect(x+TILE*0.15,y+TILE*0.08,TILE*0.7,TILE*0.35);
       ctx.font=(TILE*0.24)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText('💌', x+TILE/2, y+TILE*0.08+TILE*0.175);
+      break;
+    case 'market':
+      ctx.fillStyle=COLORS.grassA; ctx.fillRect(x,y,TILE,TILE);
+      ctx.fillStyle=COLORS.marketWood; ctx.fillRect(x+TILE*0.12,y+TILE*0.35,TILE*0.76,TILE*0.5);
+      ctx.fillStyle=COLORS.marketAwning;
+      ctx.beginPath();
+      ctx.moveTo(x+TILE*0.05,y+TILE*0.35); ctx.lineTo(x+TILE*0.5,y+TILE*0.12); ctx.lineTo(x+TILE*0.95,y+TILE*0.35);
+      ctx.closePath(); ctx.fill();
+      ctx.font=(TILE*0.3)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('💰', x+TILE/2, y+TILE*0.62);
       break;
     case 'pen': ctx.fillStyle=COLORS.pen; ctx.fillRect(x,y,TILE,TILE); break;
     case 'farmland': drawFarmland(r,c,x,y); break;
@@ -743,9 +850,6 @@ function drawBuilding(c0,r0,c1,r1,wallColor,roofColor){
   ctx.fillStyle='#5a3a1a'; ctx.fillRect(x+w*0.42,y+h*0.68,w*0.18,h*0.34);
 }
 
-/* Animals now wander server-side, so we render them at a smoothed
-   (interpolated) pixel position rather than snapping to their raw
-   tile every poll — see updateAnimalVisuals(). */
 function drawAnimal(a){
   const av = animalVisual[a.id] || {x:a.c*TILE, y:a.r*TILE};
   const x = av.x, y = av.y;
@@ -761,9 +865,10 @@ function drawAnimal(a){
   ctx.fillText(cropEmoji(a.likes), x+TILE*0.82, y+TILE*0.9);
 }
 
-/* Draws a farmer. If they've uploaded a photo, it's rendered
-   (once loaded) as a circular clipped image in place of the
-   default skin/hair face; the hat still layers on top either way. */
+/* Draws a farmer. If a photo is set, it renders LARGER than the
+   default head (radius 13 vs 10, scaled by `s`) so uploaded photos
+   read clearly at a glance — this is the "enlarge the photo"
+   sizing the head/hat/name-tag positions are nudged accordingly. */
 function drawFarmer(c,cx,cy,farmer,facing,bob,scale){
   if(!farmer) return;
   const s = scale || 1;
@@ -778,12 +883,17 @@ function drawFarmer(c,cx,cy,farmer,facing,bob,scale){
 
   const photoImg = farmer.photo ? getPhotoImage(farmer) : null;
   if(photoImg){
+    const R = 13*s; // enlarged radius for photo faces
     c.save();
-    c.beginPath(); c.arc(cx,y-16*s,10*s,0,Math.PI*2); c.clip();
-    c.drawImage(photoImg, cx-10*s, y-26*s, 20*s, 20*s);
+    c.beginPath(); c.arc(cx,y-16*s,R,0,Math.PI*2); c.clip();
+    c.drawImage(photoImg, cx-R, y-16*s-R, R*2, R*2);
     c.restore();
-    c.strokeStyle='rgba(0,0,0,0.18)'; c.lineWidth=1*s;
-    c.beginPath(); c.arc(cx,y-16*s,10*s,0,Math.PI*2); c.stroke();
+    c.strokeStyle='rgba(0,0,0,0.2)'; c.lineWidth=1.2*s;
+    c.beginPath(); c.arc(cx,y-16*s,R,0,Math.PI*2); c.stroke();
+    const hEmoji = hatEmoji(farmer.hat);
+    if(hEmoji){ c.font=(17*s)+'px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(hEmoji, cx, y-31*s); }
+    c.font=(10*s)+'px sans-serif'; c.textAlign='center'; c.fillStyle='#2d3436';
+    c.fillText(farmer.name, cx, y-40*s);
   } else {
     c.fillStyle=farmer.skin;
     c.beginPath(); c.arc(cx,y-16*s,10*s,0,Math.PI*2); c.fill();
@@ -797,11 +907,11 @@ function drawFarmer(c,cx,cy,farmer,facing,bob,scale){
       c.beginPath(); c.arc(cx-3*s+eoff,y-16*s,1.4*s,0,Math.PI*2); c.fill();
       c.beginPath(); c.arc(cx+3*s+eoff,y-16*s,1.4*s,0,Math.PI*2); c.fill();
     }
+    const hEmoji = hatEmoji(farmer.hat);
+    if(hEmoji){ c.font=(16*s)+'px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(hEmoji, cx, y-27*s); }
+    c.font=(10*s)+'px sans-serif'; c.textAlign='center'; c.fillStyle='#2d3436';
+    c.fillText(farmer.name, cx, y-36*s);
   }
-  const hEmoji = hatEmoji(farmer.hat);
-  if(hEmoji){ c.font=(16*s)+'px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(hEmoji, cx, y-27*s); }
-  c.font=(10*s)+'px sans-serif'; c.textAlign='center'; c.fillStyle='#2d3436';
-  c.fillText(farmer.name, cx, y-36*s);
 }
 
 function drawDecorations(){
@@ -898,7 +1008,7 @@ function loop(){
 
 /* ============ Movement & Interaction ============ */
 function anyModalOpen(){
-  return ['creatorOverlay','plantOverlay','kudosOverlay','howOverlay','myFarmerOverlay','buildOverlay'].some(id=>{
+  return ['creatorOverlay','plantOverlay','kudosOverlay','sellOverlay','howOverlay','myFarmerOverlay','buildOverlay'].some(id=>{
     const el = document.getElementById(id);
     return el && el.style.display==='flex';
   });
@@ -961,28 +1071,46 @@ function reconstructPath(parent, gr, gc){
 
 function facingTile(){ const [dr,dc] = DIRS[player.facing]; return {r:player.r+dr, c:player.c+dc}; }
 
+/* Determines what the player can currently act on. Checks the
+   tile they're STANDING on first (farmland incl. unlocked
+   expansions, kudos board, market), then falls back to the tile
+   they're FACING (used for animals, which physically block
+   movement, so you interact with them from an adjacent tile). */
 function getContext(){
-  const standType = grid[player.r]?.[player.c];
-  if(standType==='farmland') return {kind:'farmland', r:player.r, c:player.c, cell:getCell(player.r,player.c)};
+  const sr = player.r, sc = player.c;
+  if(isFarmlandTile(sr,sc)) return {kind:'farmland', r:sr, c:sc, cell:getCell(sr,sc)};
+  const standType = grid[sr]?.[sc];
   if(standType==='kudos') return {kind:'kudos'};
+  if(standType==='market') return {kind:'market'};
   const {r,c} = facingTile();
   if(r>=0 && r<ROWS && c>=0 && c<COLS){
     const animal = animalAt(r,c);
     if(animal) return {kind:'animal', animal};
+    if(isFarmlandTile(r,c)) return {kind:'farmland', r, c, cell:getCell(r,c)};
     const t = grid[r][c];
-    if(t==='farmland') return {kind:'farmland', r, c, cell:getCell(r,c)};
     if(t==='kudos') return {kind:'kudos'};
+    if(t==='market') return {kind:'market'};
   }
   return {kind:null};
 }
 function getCell(r,c){ return state.crops[cellKey(r,c)] || {stage:0,type:null,plantedAt:null,waterCount:0,plantedBy:null}; }
 
+/* Single shared entry point for "do the contextually-correct
+   thing right where I am" — used by both the E/Space key, the
+   action buttons, AND click-to-walk's arrival callback, so all
+   three input methods behave identically with no duplicated logic. */
 function interact(){
   if(anyModalOpen() || !myFarmer()) return;
   const ctx2 = getContext();
   if(ctx2.kind==='farmland'){ handleFarmland(ctx2.r, ctx2.c); return; }
   if(ctx2.kind==='animal'){ feedAnimal(ctx2.animal); return; }
   if(ctx2.kind==='kudos'){ openKudosModal(); return; }
+  if(ctx2.kind==='market'){ openSellModal(); return; }
+  const zone = expansionZoneAt(player.r, player.c);
+  if(zone && !(state.unlockedExpansions && state.unlockedExpansions[zone.id])){
+    toast(`🔒 This is part of "${zone.name}" — unlock it in Build & Expand for ${zone.cost} coins!`);
+    return;
+  }
   toast('🤷 Nothing to do here.');
 }
 
@@ -993,11 +1121,10 @@ function goToTileAndAct(tr,tc){
   if(tileType===undefined) return;
   const targetBlocked = isObstacle(tileType) || !!animal;
   const {dist,parent} = bfsFrom(player.r, player.c);
-  let goalR, goalC, onArrive;
+  let goalR, goalC, faceDir;
   if(!targetBlocked){
-    goalR=tr; goalC=tc;
+    goalR=tr; goalC=tc; faceDir=null;
     if(dist[goalR][goalC]===Infinity){ toast("🚧 Can't reach that spot."); return; }
-    onArrive = ()=>{ if(tileType==='farmland') handleFarmland(tr,tc); else if(tileType==='kudos') openKudosModal(); };
   } else {
     let best=null, bestDist=Infinity;
     for(const dir in DIRS){
@@ -1008,16 +1135,13 @@ function goToTileAndAct(tr,tc){
     }
     if(!best || bestDist===Infinity){ toast(animal?"🚧 Can't reach that animal.":"🚧 Can't walk there."); return; }
     goalR=best[0]; goalC=best[1];
-    onArrive = ()=>{
-      const fdr=tr-goalR, fdc=tc-goalC;
-      if(fdr===-1) player.facing='up'; else if(fdr===1) player.facing='down';
-      else if(fdc===-1) player.facing='left'; else if(fdc===1) player.facing='right';
-      // Re-check for an animal at the ORIGINAL target on arrival, since it
-      // may have wandered away in the meantime (server-authoritative anyway).
-      const stillThere = animalAt(tr,tc);
-      if(stillThere) feedAnimal(stillThere); else toast('🤷 Nothing to do here.');
-    };
+    const fdr=tr-goalR, fdc=tc-goalC;
+    faceDir = fdr===-1?'up':fdr===1?'down':fdc===-1?'left':fdc===1?'right':null;
   }
+  const onArrive = ()=>{
+    if(faceDir) player.facing = faceDir;
+    interact(); // reuse the single shared interaction entry point
+  };
   const fullPath = reconstructPath(parent, goalR, goalC);
   fullPath.shift();
   if(fullPath.length===0){ onArrive(); refreshActionPanel(); return; }
@@ -1106,8 +1230,6 @@ function renderLevelBar(){
   if(next) pct = Math.min(100, Math.round(((pts-lvl.min)/(next.min-lvl.min))*100));
   document.getElementById('levelFill').style.width = pct+'%';
 }
-/* Shows the team's chosen farm name in the header + browser tab title
-   once someone has set it; hidden/default before that. */
 function renderFarmNameDisplay(){
   const el = document.getElementById('farmNameDisplay');
   const titleEl = document.getElementById('pageTitle');
@@ -1141,7 +1263,7 @@ function renderHarvestStrip(){
     const n = state.inventory[cr.id] || 0;
     const div = document.createElement('div');
     div.className='inv-item' + (n===0 ? ' zero':'');
-    div.innerHTML = `${cr.emoji} <span class="n">${n}</span>`;
+    div.innerHTML = `${cr.emoji} <span class="n">${n}</span><span class="sell-price-tag">${SELL_PRICES[cr.id]}💰ea</span>`;
     wrap.appendChild(div);
   });
 }
@@ -1152,13 +1274,16 @@ function renderProductStrip(){
     const n = state.inventory[k] || 0;
     const div = document.createElement('div');
     div.className='inv-item' + (n===0 ? ' zero':'');
-    div.innerHTML = `${emoji} <span class="n">${n}</span>`;
+    div.innerHTML = `${emoji} <span class="n">${n}</span><span class="sell-price-tag">${SELL_PRICES[k]}💰ea</span>`;
     wrap.appendChild(div);
   });
 }
 function renderKudosCta(){
   document.getElementById('totalSeedsMsg').textContent = totalSeeds();
   document.getElementById('totalKudosMsg').textContent = state.totalKudos || 0;
+}
+function renderCoinBar(){
+  document.getElementById('coinBalance').textContent = state.coins || 0;
 }
 function renderKudosFeed(){
   const feed = document.getElementById('kudosFeed');
@@ -1187,6 +1312,7 @@ function renderLeaderboards(){
   renderBoard('giverBoard', state.stats.givers);
   renderBoard('growerBoard', state.stats.contributors);
   renderBoard('caretakerBoard', state.stats.caretakers);
+  renderBoard('sellerBoard', state.stats.sellers);
 }
 function renderOnlineList(){
   const wrap = document.getElementById('onlineList');
@@ -1211,12 +1337,13 @@ function renderHUD(){
   renderHarvestStrip();
   renderProductStrip();
   renderKudosCta();
+  renderCoinBar();
   renderKudosFeed();
   renderLeaderboards();
   renderOnlineList();
   refreshActionPanel();
 }
-const ACTION_BTN_IDS = { till:'actTill', plant:'actPlant', water:'actWater', harvest:'actHarvest', feed:'actFeed', kudos:'actKudos' };
+const ACTION_BTN_IDS = { till:'actTill', plant:'actPlant', water:'actWater', harvest:'actHarvest', feed:'actFeed', sell:'actSell', kudos:'actKudos' };
 function refreshActionPanel(){
   const readyCount = countReadyPlots();
   const badge = document.getElementById('harvestBadge');
@@ -1232,6 +1359,7 @@ function refreshActionPanel(){
     water: cellGrowing && (ctx2.cell.waterCount||0) < MAX_WATER_BOOSTS,
     harvest: cellReady,
     feed: ctx2.kind==='animal',
+    sell: ctx2.kind==='market',
     kudos: ctx2.kind==='kudos'
   };
   Object.entries(ACTION_BTN_IDS).forEach(([key,btnId])=>{
@@ -1287,6 +1415,56 @@ document.getElementById('plantConfirm').onclick = async ()=>{
   else if(res.error){ toast('⚠️ '+res.error); }
   renderHUD();
 };
+
+/* ============ Sell / Market Modal ============ */
+function openSellModal(){
+  renderSellList();
+  document.getElementById('sellOverlay').style.display='flex';
+}
+document.getElementById('sellCloseX').onclick = ()=>{ document.getElementById('sellOverlay').style.display='none'; };
+document.getElementById('sellDone').onclick = ()=>{ document.getElementById('sellOverlay').style.display='none'; };
+document.getElementById('btnSellCta').onclick = ()=> openSellModal();
+function renderSellList(){
+  const wrap = document.getElementById('sellList');
+  wrap.innerHTML='';
+  const items = [
+    ...CROPS.map(c=>({id:c.id, emoji:c.emoji, name:c.name})),
+    {id:'egg', emoji:'🥚', name:'Eggs'},
+    {id:'milk', emoji:'🥛', name:'Milk'},
+    {id:'wool', emoji:'🧶', name:'Wool'}
+  ];
+  let anySellable = false;
+  items.forEach(item=>{
+    const have = state.inventory[item.id] || 0;
+    if(have <= 0) return;
+    anySellable = true;
+    const price = SELL_PRICES[item.id];
+    const row = document.createElement('div');
+    row.className = 'sell-row';
+    row.innerHTML = `
+      <span class="semoji">${item.emoji}</span>
+      <div class="sinfo">
+        <div class="sname">${item.name}</div>
+        <div class="sprice">${price} coin${price===1?'':'s'} each</div>
+        <div class="scount">You have: ${have}</div>
+      </div>
+    `;
+    const btn = document.createElement('button');
+    btn.textContent = `Sell All (${have * price} 💰)`;
+    btn.onclick = async ()=>{
+      const res = await apiCall('/api/sell', {playerId:myPlayerId, itemId:item.id, quantity:have});
+      if(res.ok){ toast(`💰 Sold ${have} ${item.name} for ${res.earned} coins!`); confettiBurst(); }
+      else if(res.error){ toast('⚠️ '+res.error); }
+      renderHUD();
+      renderSellList();
+    };
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  });
+  if(!anySellable){
+    wrap.innerHTML = '<p class="empty-note">Nothing to sell yet — harvest some crops or collect animal products first!</p>';
+  }
+}
 
 /* ============ Kudos Modal ============ */
 function populateKudosSelect(selectEl, excludeName){
@@ -1390,27 +1568,33 @@ setInterval(()=>{
 }, 60*1000);
 
 /* ============ Photo upload (character creator) ============
-   Resizes/compresses the chosen image client-side to a small
-   square JPEG data URL before it's ever sent to the server, both
-   to keep payloads small and so the "processing" happens instantly
-   without needing any server-side image library. */
-function processPhotoFile(file){
+   Resizes/crops the chosen image client-side. A "zoom" slider lets
+   the user re-frame the shot (zooming into the center) BEFORE
+   confirming — recomputed live from the original loaded Image, so
+   moving the slider never needs to re-read the file. */
+let creatorPhotoSourceImage = null; // raw Image object of the last-selected file
+function cropPhotoAtZoom(zoomPercent){
+  if(!creatorPhotoSourceImage) return null;
+  const img = creatorPhotoSourceImage;
+  const outSize = 128;
+  const minDim = Math.min(img.width, img.height);
+  const cropSize = Math.max(4, minDim / (zoomPercent/100));
+  const sx = Math.max(0, (img.width - cropSize)/2);
+  const sy = Math.max(0, (img.height - cropSize)/2);
+  const off = document.createElement('canvas');
+  off.width = outSize; off.height = outSize;
+  const octx = off.getContext('2d');
+  octx.drawImage(img, sx, sy, cropSize, cropSize, 0, 0, outSize, outSize);
+  return off.toDataURL('image/jpeg', 0.72);
+}
+function loadImageFromFile(file){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
     reader.onerror = ()=> reject(new Error('Could not read that file.'));
     reader.onload = ()=>{
       const img = new Image();
       img.onerror = ()=> reject(new Error('Could not load that image.'));
-      img.onload = ()=>{
-        const size = 128;
-        const off = document.createElement('canvas');
-        off.width = size; off.height = size;
-        const octx = off.getContext('2d');
-        const srcSize = Math.min(img.width, img.height);
-        const sx = (img.width - srcSize)/2, sy = (img.height - srcSize)/2;
-        octx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
-        resolve(off.toDataURL('image/jpeg', 0.72));
-      };
+      img.onload = ()=> resolve(img);
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
@@ -1422,20 +1606,35 @@ document.getElementById('photoFileInput').addEventListener('change', async (e)=>
   if(!file) return;
   if(!file.type || !file.type.startsWith('image/')){ toast('⚠️ Please choose an image file.'); return; }
   try{
-    const dataUrl = await processPhotoFile(file);
+    creatorPhotoSourceImage = await loadImageFromFile(file);
+    document.getElementById('photoZoomSlider').value = 100;
+    document.getElementById('photoZoomLabel').textContent = '100%';
+    document.getElementById('photoZoomRow').classList.add('show');
+    const dataUrl = cropPhotoAtZoom(100);
     if(dataUrl.length > MAX_PHOTO_DATA_URL_LENGTH){ toast('⚠️ Photo is too large even after compression — try a simpler image.'); return; }
     creatorSelection.photo = dataUrl;
     document.getElementById('photoRemoveBtn').style.display = 'inline-block';
     drawCreatorPreview();
-    toast('📷 Photo added! It will show on your farmer.');
+    toast('📷 Photo added! Use the zoom slider to frame it, then Join/Save.');
   }catch(err){
     toast('⚠️ Could not process that photo.');
   }
 });
+document.getElementById('photoZoomSlider').addEventListener('input', (e)=>{
+  const zoom = Number(e.target.value);
+  document.getElementById('photoZoomLabel').textContent = zoom + '%';
+  if(!creatorPhotoSourceImage) return;
+  const dataUrl = cropPhotoAtZoom(zoom);
+  if(dataUrl.length > MAX_PHOTO_DATA_URL_LENGTH) return; // ignore, keep last good crop
+  creatorSelection.photo = dataUrl;
+  drawCreatorPreview();
+});
 document.getElementById('photoRemoveBtn').onclick = ()=>{
   creatorSelection.photo = null;
+  creatorPhotoSourceImage = null;
   document.getElementById('photoFileInput').value = '';
   document.getElementById('photoRemoveBtn').style.display = 'none';
+  document.getElementById('photoZoomRow').classList.remove('show');
   drawCreatorPreview();
 };
 
@@ -1483,6 +1682,7 @@ function openCreator(isFirstTime){
   creatorSelection = existing
     ? { skin:existing.skin, hair:existing.hair, shirt:existing.shirt, pants:existing.pants, hat:existing.hat, photo:existing.photo||null }
     : { skin:SKIN_COLORS[0], hair:HAIR_COLORS[0], shirt:SHIRT_COLORS[0], pants:PANTS_COLORS[0], hat:'none', photo:null };
+  creatorPhotoSourceImage = null; // any previously-saved photo can't be re-zoomed without re-uploading
   buildSwatches('skinSwatches', SKIN_COLORS, 'skin', creatorSelection.skin);
   buildSwatches('hairSwatches', HAIR_COLORS, 'hair', creatorSelection.hair);
   buildSwatches('shirtSwatches', SHIRT_COLORS, 'shirt', creatorSelection.shirt);
@@ -1490,6 +1690,7 @@ function openCreator(isFirstTime){
   buildHatChoices(creatorSelection.hat);
   document.getElementById('photoFileInput').value = '';
   document.getElementById('photoRemoveBtn').style.display = creatorSelection.photo ? 'inline-block' : 'none';
+  document.getElementById('photoZoomRow').classList.remove('show');
 
   const needsFarmName = isFirstTime && !state.teamName;
   document.getElementById('creatorFarmName').style.display = needsFarmName ? 'block' : 'none';
@@ -1571,24 +1772,39 @@ function renderRoster(){
   });
 }
 
-/* ============ Build Mode ============ */
-function unlockedDecorations(){ return DECORATIONS.filter(d=>d.minPoints<=currentPoints()); }
+/* ============ Build & Expand Modal ============ */
+document.getElementById('btnBuild').onclick = ()=> openBuildModal();
+document.getElementById('buildCloseX').onclick = ()=>{ document.getElementById('buildOverlay').style.display='none'; };
+document.getElementById('tabDecorate').onclick = ()=> switchBuildTab('decorate');
+document.getElementById('tabExpand').onclick = ()=> switchBuildTab('expand');
+function switchBuildTab(tab){
+  document.getElementById('tabDecorate').classList.toggle('active', tab==='decorate');
+  document.getElementById('tabExpand').classList.toggle('active', tab==='expand');
+  document.getElementById('decoratePanel').classList.toggle('active', tab==='decorate');
+  document.getElementById('expandPanel').classList.toggle('active', tab==='expand');
+}
+function openBuildModal(){
+  document.getElementById('buildCoinDisplay').textContent = state.coins || 0;
+  switchBuildTab('decorate');
+  renderDecorateTab();
+  renderExpandTab();
+  document.getElementById('buildOverlay').style.display='flex';
+}
+function unlockedByPoints(){ return DECORATIONS.filter(d=>d.minPoints<=currentPoints()); }
 function nextLockedDecoration(){
   const locked = DECORATIONS.filter(d=>d.minPoints>currentPoints()).sort((a,b)=>a.minPoints-b.minPoints);
   return locked[0] || null;
 }
 let buildSelectedDecorId = null;
-document.getElementById('btnBuild').onclick = ()=> openBuildModal();
-document.getElementById('buildClose').onclick = ()=>{ document.getElementById('buildOverlay').style.display='none'; };
-function openBuildModal(){
-  const unlocked = unlockedDecorations();
+function renderDecorateTab(){
+  const unlocked = unlockedByPoints();
   buildSelectedDecorId = unlocked[0] ? unlocked[0].id : null;
   const wrap = document.getElementById('decorChoices');
   wrap.innerHTML='';
   unlocked.forEach(d=>{
     const div = document.createElement('div');
     div.className='crop-choice' + (d.id===buildSelectedDecorId?' selected':'');
-    div.innerHTML = `<span class="emoji">${d.emoji}</span>${d.name}`;
+    div.innerHTML = `<span class="emoji">${d.emoji}</span>${d.name}<span class="growtime">${d.cost} 💰</span>`;
     div.onclick = ()=>{
       wrap.querySelectorAll('.crop-choice').forEach(x=>x.classList.remove('selected'));
       div.classList.add('selected'); buildSelectedDecorId = d.id;
@@ -1597,10 +1813,9 @@ function openBuildModal(){
   });
   const nextLocked = nextLockedDecoration();
   document.getElementById('buildProgressNote').textContent = nextLocked
-    ? `You've unlocked ${unlocked.length} of ${DECORATIONS.length} decorations. Reach ${nextLocked.minPoints} team points to unlock ${nextLocked.emoji} ${nextLocked.name} (you're at ${currentPoints()}).`
-    : `🎉 All ${DECORATIONS.length} decorations unlocked — your farm is legendary!`;
+    ? `You've unlocked ${unlocked.length} of ${DECORATIONS.length} decorations (by points). Reach ${nextLocked.minPoints} team points to unlock ${nextLocked.emoji} ${nextLocked.name}. Each decoration also costs coins — sell crops at the Market to afford them!`
+    : `🎉 All ${DECORATIONS.length} decorations unlocked by points — make sure you have enough coins too!`;
   renderPlacedDecorList();
-  document.getElementById('buildOverlay').style.display='flex';
 }
 document.getElementById('buildPlaceBtn').onclick = ()=>{
   if(!buildSelectedDecorId){ toast('No decoration selected.'); return; }
@@ -1641,6 +1856,33 @@ async function placeDecorationAt(r,c){
 function cancelPlacement(){
   if(placementModeActive){ placementModeActive=false; placementDecorationId=null; toast('Placement cancelled.'); }
 }
+function renderExpandTab(){
+  const wrap = document.getElementById('expandList');
+  wrap.innerHTML='';
+  EXPANSION_ZONES.forEach(zone=>{
+    const unlocked = !!(state.unlockedExpansions && state.unlockedExpansions[zone.id]);
+    const row = document.createElement('div');
+    row.className = 'expand-row' + (unlocked ? ' unlocked' : '');
+    row.innerHTML = `
+      <div class="ename">🗺️ ${zone.name} ${unlocked ? '✅' : ''}</div>
+      <div class="edetails">${zone.tiles.length} new farmland plots ${unlocked ? '— unlocked!' : `— costs ${zone.cost} 💰`}</div>
+    `;
+    if(!unlocked){
+      const btn = document.createElement('button');
+      btn.className = 'btn-gold';
+      btn.textContent = `Unlock for ${zone.cost} 💰`;
+      btn.onclick = async ()=>{
+        const res = await apiCall('/api/expand', {playerId:myPlayerId, expansionId:zone.id});
+        if(res.ok){ confettiBurst(); toast(`🗺️ ${zone.name} unlocked! ${zone.tiles.length} new plots are ready to till.`); renderExpandTab(); }
+        else if(res.error){ toast('⚠️ '+res.error); }
+        renderHUD();
+        document.getElementById('buildCoinDisplay').textContent = state.coins || 0;
+      };
+      row.appendChild(btn);
+    }
+    wrap.appendChild(row);
+  });
+}
 
 /* ============ How To Play ============ */
 document.getElementById('btnHow').onclick = ()=> document.getElementById('howOverlay').style.display='flex';
@@ -1651,7 +1893,7 @@ document.getElementById('btnExport').onclick = ()=>{
   if(!state.kudosLog || state.kudosLog.length===0){ toast('No kudos to export yet!'); return; }
   let text = `Team Farm Kudos Wall — ${state.teamName || 'Our Team'}\n`;
   text += `Exported: ${new Date().toLocaleString()}\n`;
-  text += `Total kudos sent: ${state.totalKudos||0} | Total harvests: ${state.totalHarvests} | Total animal products: ${state.totalProducts}\n\n`;
+  text += `Total kudos sent: ${state.totalKudos||0} | Total harvests: ${state.totalHarvests} | Total animal products: ${state.totalProducts} | Total coins earned: ${state.totalCoinsEarned||0}\n\n`;
   state.kudosLog.forEach(k=>{
     text += `${k.sentimentEmoji||''} ${k.fromName} → ${k.toName} (${k.sentimentLabel||''})\n`;
     if(k.message) text += `   "${k.message}"\n`;
@@ -1665,7 +1907,7 @@ document.getElementById('btnExport').onclick = ()=>{
 
 /* ============ New Season ============ */
 document.getElementById('btnReset').onclick = async ()=>{
-  if(!confirm('Start a brand new season for the whole team? This clears crops, seeds, animal happiness, inventory, decorations, and kudos (everyone stays on the farm).')) return;
+  if(!confirm('Start a brand new season for the whole team? This clears crops, seeds, coins, farm expansions, animal happiness, inventory, decorations, and kudos (everyone stays on the farm).')) return;
   const res = await apiCall('/api/reset-season', {});
   if(res.ok){ toast('🚜 New season started for everyone!'); lastKudosTs = Date.now(); }
   renderHUD();
@@ -1693,6 +1935,7 @@ document.getElementById('actPlant').onclick = ()=>{ const c=getContext(); if(c.k
 document.getElementById('actWater').onclick = ()=>{ const c=getContext(); if(c.kind==='farmland'&&c.cell.stage===2&&!isReady(c.cell)) waterTile(c.r,c.c); };
 document.getElementById('actHarvest').onclick = ()=>{ const c=getContext(); if(c.kind==='farmland'&&c.cell.stage===2&&isReady(c.cell)) harvestTile(c.r,c.c); };
 document.getElementById('actFeed').onclick = ()=>{ const c=getContext(); if(c.kind==='animal') feedAnimal(c.animal); };
+document.getElementById('actSell').onclick = ()=>{ const c=getContext(); if(c.kind==='market') openSellModal(); };
 document.getElementById('actKudos').onclick = ()=>{ const c=getContext(); if(c.kind==='kudos') openKudosModal(); };
 
 /* ============ Canvas Mouse ============ */
@@ -1715,12 +1958,12 @@ canvas.addEventListener('mousemove', (evt)=>{
   if(r<0||r>=ROWS||c<0||c>=COLS){ canvas.style.cursor='default'; return; }
   hoverTile = {r,c};
   if(placementModeActive){
-    canvas.style.cursor = (grid[r][c]==='grass' && !state.decorations[cellKey(r,c)]) ? FARM_CURSOR : 'not-allowed';
+    canvas.style.cursor = (grid[r][c]==='grass' && !state.decorations[cellKey(r,c)]) ? '' : 'not-allowed';
     return;
   }
   const t = grid[r][c];
   const animal = animalAt(r,c);
-  canvas.style.cursor = (animal || !isObstacle(t)) ? FARM_CURSOR : 'not-allowed';
+  canvas.style.cursor = (animal || !isObstacle(t)) ? '' : 'not-allowed';
 });
 canvas.addEventListener('mouseleave', ()=>{ canvas.style.cursor='default'; });
 

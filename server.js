@@ -8,23 +8,28 @@
    GAME ECONOMY:
      - Sending a kudos awards the team ONE random seed. The
        "sentiment" picked (why you're recognizing someone) is
-       fully decoupled from the seed reward — sentiments are a
-       tailorable set of tags (default + custom), seeds are pure
-       chance.
+       fully decoupled from the seed reward.
      - Planting spends a seed of the chosen crop type.
      - Harvesting fills a shared Harvest Basket.
-     - Animals are picky: each only accepts its own liked crop.
+     - Animals are picky: each only accepts its own liked crop
+       (chicken/corn, cow/carrot, sheep/strawberry).
+     - NEW: The Market — drop ANY harvested crop or animal
+       product at the Market stall to sell it for coins. This
+       gives every crop a purpose, including the ones no animal
+       eats (sunflower, pumpkin, tomato). Coins are the team's
+       shared currency, spent on:
+         - Decorations (now cost coins, in addition to the
+           existing points-based unlock tiers)
+         - Farm Expansions — permanently unlock new plots of
+           farmland beyond the original field, using coins.
 
    GROWTH TIMING: real calendar days (max ~7 for the slowest crop).
    Watering is an optional booster (up to 3x, 10% faster each).
 
-   ANIMALS WANDER: each animal randomly wanders within the pen on
-   its own timer, entirely server-side, so movement is consistent
-   and synced for every connected player.
+   ANIMALS WANDER within their pen on an independent timer.
 
-   FARMER PHOTOS: a farmer's appearance can optionally include a
-   small uploaded photo (resized+compressed client-side to a data
-   URL) that renders on their face in place of the default head.
+   FARMER PHOTOS: an optional uploaded photo (resized/compressed
+   client-side to a data URL) renders on a farmer's face.
    ============================================================ */
 
 const http = require('http');
@@ -50,14 +55,21 @@ const CROP_GROWTH_MS = {
   pumpkin:    7.0 * DAY_MS
 };
 
+/* Every crop now has a purpose even if no animal eats it: sell it
+   at the Market. Prices scale roughly with grow time, so slower
+   crops (which tie up a farmland plot longer) are worth more. */
+const SELL_PRICES = {
+  carrot: 4, corn: 5, tomato: 6, sunflower: 8, strawberry: 10, pumpkin: 14,
+  egg: 8, milk: 12, wool: 16
+};
+const SELLABLE_IDS = Object.keys(SELL_PRICES);
+
 const ANIMALS_DEF = [
   {id:'chicken1', type:'chicken', r:5, c:11, likes:'corn',       product:'egg',  productName:'eggs'},
   {id:'chicken2', type:'chicken', r:5, c:14, likes:'corn',       product:'egg',  productName:'eggs'},
   {id:'cow',      type:'cow',     r:7, c:12, likes:'carrot',     product:'milk', productName:'milk'},
   {id:'sheep',    type:'sheep',   r:7, c:14, likes:'strawberry', product:'wool', productName:'wool'}
 ];
-/* Pen interior bounds — animals are only allowed to wander within
-   this rectangle (matches the visual pen fence in buildGrid()). */
 const PEN_BOUNDS = { rMin:4, rMax:8, cMin:10, cMax:15 };
 
 const DEFAULT_SENTIMENTS = [
@@ -74,18 +86,46 @@ const DEFAULT_SENTIMENTS = [
 ];
 const MAX_SENTIMENTS = 40;
 
-const DECORATION_IDS = {
-  flowerpatch:0, rock:0, haybale:8, scarecrow:8,
-  fountain:20, bench:20, lantern:40, tent:40,
-  rainbow:70, statue:70
-};
+/* Decorations still unlock progressively via team "points"
+   (harvests+products) as before, but NOW also cost coins to
+   actually place — giving coins a second sink beyond expansions. */
+const DECORATIONS_DEF = [
+  {id:'flowerpatch', minPoints:0,  cost:15},
+  {id:'rock',        minPoints:0,  cost:15},
+  {id:'haybale',     minPoints:8,  cost:30},
+  {id:'scarecrow',   minPoints:8,  cost:30},
+  {id:'fountain',    minPoints:20, cost:60},
+  {id:'bench',       minPoints:20, cost:60},
+  {id:'lantern',     minPoints:40, cost:120},
+  {id:'tent',        minPoints:40, cost:120},
+  {id:'rainbow',     minPoints:70, cost:250},
+  {id:'statue',      minPoints:70, cost:250}
+];
+const DECORATION_IDS = {}; // id -> minPoints (kept for quick lookup, mirrors old shape)
+DECORATIONS_DEF.forEach(d=> DECORATION_IDS[d.id]=d.minPoints);
+function decorationDef(id){ return DECORATIONS_DEF.find(d=>d.id===id); }
+
+/* Farm Expansions: permanently convert a fixed set of currently-
+   grass tiles into tillable farmland once the team pays the coin
+   cost. Tile coordinates are hand-picked open grass areas below/
+   beside the original field and pen that don't collide with any
+   other feature (verified against buildGrid() below). */
+const EXPANSION_ZONES = [
+  {
+    id:'south_field', name:'South Field', cost:150,
+    tiles: [[9,5],[9,6],[9,7],[9,8],[10,5],[10,6],[10,7],[10,8]]
+  },
+  {
+    id:'east_field', name:'East Field', cost:300,
+    tiles: [[10,10],[10,11],[10,12],[10,13],[10,14],[10,15]]
+  }
+];
+function expansionZoneAt(r,c){
+  return EXPANSION_ZONES.find(z => z.tiles.some(([zr,zc])=>zr===r&&zc===c));
+}
 
 const OBSTACLE_TYPES = new Set(['tree','house','barn','fence','water']);
-
-/* A farmer's uploaded photo is a data: URL (client resizes/compresses
-   before sending). Capped generously but firmly so state.json and
-   network payloads stay reasonable for a small team. */
-const MAX_PHOTO_DATA_URL_LENGTH = 120000; // ~90KB of actual image data after base64 overhead
+const MAX_PHOTO_DATA_URL_LENGTH = 120000;
 
 function buildGrid(){
   const g = [];
@@ -95,6 +135,7 @@ function buildGrid(){
   for(let r=1;r<=2;r++) for(let c=1;c<=3;c++) g[r][c]='house';
   for(let r=1;r<=2;r++) for(let c=13;c<=15;c++) g[r][c]='barn';
   g[1][8]='kudos';
+  g[2][9]='market'; // Market stall — open grass tile, doesn't collide with anything else
   for(let c=4;c<=7;c++) g[1][c]='path';
   g[1][12]='path'; g[2][12]='path';
   for(let c=1;c<=8;c++){ g[3][c]='fence'; g[8][c]='fence'; }
@@ -111,6 +152,15 @@ function buildGrid(){
 const GRID = buildGrid();
 function tileAt(r,c){ return GRID[r] && GRID[r][c]; }
 
+/* A tile is plantable farmland if it's part of the original field,
+   OR it's inside an expansion zone the team has already unlocked. */
+function isFarmlandTile(r,c){
+  if(tileAt(r,c) === 'farmland') return true;
+  const zone = expansionZoneAt(r,c);
+  if(zone && state.unlockedExpansions[zone.id]) return true;
+  return false;
+}
+
 const SPAWN_SPOTS = [[1,5],[1,4],[1,6],[1,7],[2,6]];
 
 /* ============ Shared in-memory state ============ */
@@ -122,17 +172,20 @@ function emptySeedBank(){
 function defaultState(){
   return {
     teamName:'',
-    farmers:[],               // {id,name,skin,hair,shirt,pants,hat,photo,r,c}
-    crops:{},                 // "r,c" -> {stage,type,plantedAt,waterCount,plantedBy}
+    farmers:[],
+    crops:{},
     animals: ANIMALS_DEF.map(a=>({...a, happiness:0, nextMoveAt: Date.now()+randomWanderDelay()})),
     seeds: emptySeedBank(),
     inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0, egg:0, milk:0, wool:0},
+    coins: 0,
+    unlockedExpansions: {}, // expansionId -> true
     sentiments: DEFAULT_SENTIMENTS.map(s=>({...s})),
     kudosLog:[],
-    stats:{givers:{}, contributors:{}, caretakers:{}},
+    stats:{givers:{}, contributors:{}, caretakers:{}, sellers:{}},
     totalHarvests:0,
     totalProducts:0,
     totalKudos:0,
+    totalCoinsEarned:0,
     decorations:{},
     version:0
   };
@@ -146,9 +199,10 @@ function loadStateFromDisk(){
       const raw = fs.readFileSync(STATE_FILE, 'utf8');
       const loaded = JSON.parse(raw);
       const merged = Object.assign(defaultState(), loaded);
-      // Ensure animals array has wander timers even if loaded from an
-      // older save that predates this field.
       merged.animals = merged.animals.map(a=> ({ nextMoveAt: Date.now()+randomWanderDelay(), ...a }));
+      if(!merged.unlockedExpansions) merged.unlockedExpansions = {};
+      if(!merged.stats.sellers) merged.stats.sellers = {};
+      if(typeof merged.coins !== 'number') merged.coins = 0;
       return merged;
     }
   }catch(e){
@@ -208,17 +262,8 @@ function formatRemaining(ms){
   return `${secs}s`;
 }
 
-/* ============ Animal wandering AI ============
-   Each animal independently "decides" to take one step at a
-   random interval (a few seconds to under a minute), moving to a
-   random adjacent tile within the pen bounds. This runs entirely
-   server-side on a fixed tick so movement is authoritative and
-   identical for every connected client (who just render whatever
-   position they're told). Animals won't step onto a tile another
-   animal or a farmer currently occupies. */
-function randomWanderDelay(){
-  return 4000 + Math.random()*8000; // 4-12 seconds between steps, per animal
-}
+/* ============ Animal wandering AI ============ */
+function randomWanderDelay(){ return 4000 + Math.random()*8000; }
 function isTileFreeForAnimal(r,c,excludeAnimalId){
   if(r < PEN_BOUNDS.rMin || r > PEN_BOUNDS.rMax || c < PEN_BOUNDS.cMin || c > PEN_BOUNDS.cMax) return false;
   if(tileAt(r,c) !== 'pen') return false;
@@ -233,17 +278,10 @@ function tickAnimalWander(){
     if(now < (a.nextMoveAt||0)) return;
     a.nextMoveAt = now + randomWanderDelay();
     const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
-    // shuffle so the chosen direction isn't biased toward the first checked
     for(let i=dirs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [dirs[i],dirs[j]]=[dirs[j],dirs[i]]; }
     for(const [dr,dc] of dirs){
       const nr=a.r+dr, nc=a.c+dc;
-      if(isTileFreeForAnimal(nr,nc,a.id)){
-        a.r = nr; a.c = nc;
-        moved = true;
-        break;
-      }
-      // occasionally "stay put" even if a move is available, so it doesn't
-      // look like every animal moves in lockstep every single tick
+      if(isTileFreeForAnimal(nr,nc,a.id)){ a.r=nr; a.c=nc; moved=true; break; }
       if(Math.random() < 0.3) break;
     }
   });
@@ -252,37 +290,33 @@ function tickAnimalWander(){
 setInterval(tickAnimalWander, 1000);
 
 /* ============ API handlers ============ */
-function apiJoin(body){
-  const name = (body.name || '').toString().trim().slice(0,40);
-  if(!name) return {ok:false, error:'Name is required.'};
-  const spawn = SPAWN_SPOTS[state.farmers.length % SPAWN_SPOTS.length];
-  const photo = validatePhoto(body.photo);
-  const farmer = {
-    id: uid(),
-    name,
-    skin: (body.skin||'#ffdbac').toString().slice(0,20),
-    hair: (body.hair||'#2d2d2d').toString().slice(0,20),
-    shirt: (body.shirt||'#54a0ff').toString().slice(0,20),
-    pants: (body.pants||'#3b3b58').toString().slice(0,20),
-    hat: (body.hat||'none').toString().slice(0,20),
-    photo: photo, // null or a data: URL
-    r: spawn[0], c: spawn[1]
-  };
-  if(body.teamName && !state.teamName) state.teamName = body.teamName.toString().slice(0,60);
-  state.farmers.push(farmer);
-  bump();
-  return {ok:true, playerId:farmer.id};
-}
-
-/* Only accepts a plausible small image data: URL; rejects anything
-   too large or malformed rather than silently truncating it (which
-   would corrupt the image). */
 function validatePhoto(photo){
   if(!photo) return null;
   const str = photo.toString();
   if(!str.startsWith('data:image/')) return null;
   if(str.length > MAX_PHOTO_DATA_URL_LENGTH) return null;
   return str;
+}
+
+function apiJoin(body){
+  const name = (body.name || '').toString().trim().slice(0,40);
+  if(!name) return {ok:false, error:'Name is required.'};
+  const spawn = SPAWN_SPOTS[state.farmers.length % SPAWN_SPOTS.length];
+  const photo = validatePhoto(body.photo);
+  const farmer = {
+    id: uid(), name,
+    skin: (body.skin||'#ffdbac').toString().slice(0,20),
+    hair: (body.hair||'#2d2d2d').toString().slice(0,20),
+    shirt: (body.shirt||'#54a0ff').toString().slice(0,20),
+    pants: (body.pants||'#3b3b58').toString().slice(0,20),
+    hat: (body.hat||'none').toString().slice(0,20),
+    photo: photo,
+    r: spawn[0], c: spawn[1]
+  };
+  if(body.teamName && !state.teamName) state.teamName = body.teamName.toString().slice(0,60);
+  state.farmers.push(farmer);
+  bump();
+  return {ok:true, playerId:farmer.id};
 }
 
 function apiUpdateAppearance(body){
@@ -296,7 +330,7 @@ function apiUpdateAppearance(body){
   if(body.hat) f.hat = body.hat.toString().slice(0,20);
   if(body.hasOwnProperty('photo')){
     if(body.photo === null || body.photo === ''){
-      f.photo = null; // explicit removal
+      f.photo = null;
     } else {
       const validated = validatePhoto(body.photo);
       if(body.photo && !validated) return {ok:false, error:'Photo is too large or invalid — please try a smaller image.'};
@@ -332,7 +366,7 @@ function apiTill(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
   const {r,c} = body;
-  if(!isValidCoord(r,c) || tileAt(r,c)!=='farmland') return {ok:false, error:'Not farmland.'};
+  if(!isValidCoord(r,c) || !isFarmlandTile(r,c)) return {ok:false, error:'Not farmland.'};
   const cell = getOrCreateCell(r,c);
   if(cell.stage!==0) return {ok:false, error:'Already tilled.'};
   cell.stage = 1;
@@ -344,7 +378,7 @@ function apiPlant(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
   const {r,c,cropId} = body;
-  if(!isValidCoord(r,c) || tileAt(r,c)!=='farmland') return {ok:false, error:'Not farmland.'};
+  if(!isValidCoord(r,c) || !isFarmlandTile(r,c)) return {ok:false, error:'Not farmland.'};
   if(!CROP_IDS.includes(cropId)) return {ok:false, error:'Bad crop.'};
   const cell = getOrCreateCell(r,c);
   if(cell.stage!==1) return {ok:false, error:'Not ready to plant.'};
@@ -409,6 +443,27 @@ function apiFeed(body){
   return {ok:true, fed:likedCrop, gain:FEED_GAIN, produced};
 }
 
+/* Sells one or more units of a single harvested crop or animal
+   product for coins. Every crop (even ones no animal eats) is
+   sellable, so nothing grown is ever a dead end. */
+function apiSell(body){
+  const f = findFarmer(body.playerId);
+  if(!f) return {ok:false, error:'Unknown player.'};
+  const itemId = (body.itemId||'').toString();
+  const quantity = Math.floor(Number(body.quantity));
+  if(!SELLABLE_IDS.includes(itemId)) return {ok:false, error:'That item cannot be sold.'};
+  if(!Number.isInteger(quantity) || quantity <= 0) return {ok:false, error:'Bad quantity.'};
+  const have = state.inventory[itemId] || 0;
+  if(have < quantity) return {ok:false, error:`You only have ${have} of that to sell.`};
+  const earned = SELL_PRICES[itemId] * quantity;
+  state.inventory[itemId] = have - quantity;
+  state.coins += earned;
+  state.totalCoinsEarned += earned;
+  state.stats.sellers[f.name] = (state.stats.sellers[f.name]||0) + earned;
+  bump();
+  return {ok:true, earned, newCoins: state.coins};
+}
+
 function apiAddSentiment(body){
   const label = (body.label||'').toString().trim().slice(0,40);
   if(!label) return {ok:false, error:'Sentiment name is required.'};
@@ -444,15 +499,20 @@ function apiKudos(body){
   return {ok:true, seedAwarded};
 }
 
+/* Decorations now require BOTH the points-based unlock tier AND
+   a coin payment, deducted atomically (never partially charged). */
 function apiDecorate(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
   const {r,c,decorId} = body;
   if(!isValidCoord(r,c) || tileAt(r,c)!=='grass') return {ok:false, error:'Decorations must go on open grass.'};
-  if(!(decorId in DECORATION_IDS)) return {ok:false, error:'Unknown decoration.'};
-  if(DECORATION_IDS[decorId] > points()) return {ok:false, error:'Not unlocked yet.'};
+  const def = decorationDef(decorId);
+  if(!def) return {ok:false, error:'Unknown decoration.'};
+  if(def.minPoints > points()) return {ok:false, error:'Not unlocked yet — grow more crops/products first.'};
+  if(state.coins < def.cost) return {ok:false, error:`Not enough coins — need ${def.cost}, have ${state.coins}. Sell some crops at the Market!`};
   const key = cellKey(r,c);
   if(state.decorations[key]) return {ok:false, error:'Tile already decorated.'};
+  state.coins -= def.cost;
   state.decorations[key] = decorId;
   bump();
   return {ok:true};
@@ -464,6 +524,23 @@ function apiRemoveDecor(body){
   const key = cellKey(r,c);
   if(!state.decorations[key]) return {ok:false, error:'Nothing there.'};
   delete state.decorations[key];
+  bump();
+  return {ok:true};
+}
+
+/* Permanently unlocks an expansion zone's tiles as farmland, once
+   the team has enough coins. Idempotent: re-unlocking an already-
+   unlocked zone is a no-op success (not an error), since two
+   players might click "unlock" nearly simultaneously. */
+function apiExpand(body){
+  const f = findFarmer(body.playerId);
+  if(!f) return {ok:false, error:'Unknown player.'};
+  const zone = EXPANSION_ZONES.find(z=>z.id===body.expansionId);
+  if(!zone) return {ok:false, error:'Unknown expansion.'};
+  if(state.unlockedExpansions[zone.id]) return {ok:true, alreadyUnlocked:true};
+  if(state.coins < zone.cost) return {ok:false, error:`Not enough coins — need ${zone.cost}, have ${state.coins}. Sell some crops at the Market!`};
+  state.coins -= zone.cost;
+  state.unlockedExpansions[zone.id] = true;
   bump();
   return {ok:true};
 }
@@ -490,10 +567,12 @@ const ROUTES = {
   '/api/water': apiWater,
   '/api/harvest': apiHarvest,
   '/api/feed': apiFeed,
+  '/api/sell': apiSell,
   '/api/kudos': apiKudos,
   '/api/sentiments': apiAddSentiment,
   '/api/decorate': apiDecorate,
   '/api/remove-decor': apiRemoveDecor,
+  '/api/expand': apiExpand,
   '/api/reset-season': apiResetSeason
 };
 
@@ -512,7 +591,7 @@ function sendJSON(res, statusCode, obj){
 }
 function readBody(req, cb){
   let data = '';
-  req.on('data', chunk=>{ data += chunk; if(data.length > 3e6) req.destroy(); }); // allow up to ~3MB body (photo data URLs)
+  req.on('data', chunk=>{ data += chunk; if(data.length > 3e6) req.destroy(); });
   req.on('end', ()=>{
     if(!data){ cb({}); return; }
     try{ cb(JSON.parse(data)); } catch(e){ cb({}); }
@@ -561,4 +640,8 @@ function flushAndExit(){
 process.on('SIGINT', flushAndExit);
 process.on('SIGTERM', flushAndExit);
 
-module.exports = { server, CROP_GROWTH_MS, MAX_WATER_BOOSTS, REDUCTION_PER_WATER, CROP_IDS, STATE_FILE, saveStateToDisk, PEN_BOUNDS, tickAnimalWander, MAX_PHOTO_DATA_URL_LENGTH };
+module.exports = {
+  server, CROP_GROWTH_MS, MAX_WATER_BOOSTS, REDUCTION_PER_WATER, CROP_IDS,
+  STATE_FILE, saveStateToDisk, PEN_BOUNDS, tickAnimalWander,
+  MAX_PHOTO_DATA_URL_LENGTH, SELL_PRICES, EXPANSION_ZONES, DECORATIONS_DEF
+};
