@@ -281,6 +281,7 @@
 <div class="overlay" id="creatorOverlay" style="display:none;">
   <div class="modal">
     <h2 id="creatorTitle">🌻 Join the Farm</h2>
+    <p id="joiningExistingFarmNote" style="display:none; font-size:0.85rem; background:#fff3e0; color:#7a5b00; padding:8px 12px; border-radius:8px; margin-top:-4px;"></p>
     <div class="creator-flex">
       <div class="creator-fields">
         <label>Farm / Team Name</label>
@@ -1350,9 +1351,25 @@ function openCreator(isFirstTime){
   buildSwatches('shirtSwatches', SHIRT_COLORS, 'shirt', creatorSelection.shirt);
   buildSwatches('pantsSwatches', PANTS_COLORS, 'pants', creatorSelection.pants);
   buildHatChoices(creatorSelection.hat);
-  document.getElementById('creatorFarmName').value = state.teamName || '';
-  document.getElementById('creatorFarmName').style.display = isFirstTime ? 'block' : 'none';
-  document.getElementById('creatorFarmName').previousElementSibling.style.display = isFirstTime ? 'block' : 'none';
+
+  /* The farm/team name only needs to be set ONCE, by whoever joins first —
+     the server ignores it from anyone after that (see apiJoin). So we only
+     show this field when the farm doesn't have a name yet; everyone joining
+     afterward sees a message confirming which farm they're joining instead,
+     making it clear they're landing in the same shared space, not creating
+     a new one. */
+  const needsFarmName = isFirstTime && !state.teamName;
+  document.getElementById('creatorFarmName').style.display = needsFarmName ? 'block' : 'none';
+  document.getElementById('creatorFarmName').previousElementSibling.style.display = needsFarmName ? 'block' : 'none';
+  document.getElementById('creatorFarmName').value = '';
+  const joiningNote = document.getElementById('joiningExistingFarmNote');
+  if(isFirstTime && state.teamName){
+    joiningNote.textContent = `You're joining "${state.teamName}" — ${state.farmers.length} teammate${state.farmers.length===1?'':'s'} already here!`;
+    joiningNote.style.display = 'block';
+  } else {
+    joiningNote.style.display = 'none';
+  }
+
   document.getElementById('creatorNameInput').value = existing ? existing.name : '';
   document.getElementById('creatorTitle').textContent = isFirstTime ? '🌻 Join the Farm' : '🎨 Edit Your Farmer';
   document.getElementById('creatorConfirm').textContent = isFirstTime ? '🚜 Join Farm' : '💾 Save Changes';
