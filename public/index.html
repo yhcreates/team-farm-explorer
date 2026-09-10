@@ -176,6 +176,16 @@
   .crop-choice.selected{ border-color:var(--accent); background:#fff3e0; }
   .crop-choice.disabled{ opacity:0.35; cursor:not-allowed; pointer-events:none; }
 
+  .tag-choices{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .tag-choice{
+    border:2px solid transparent; border-radius:20px; padding:7px 14px; cursor:pointer;
+    background:#f4f6f8; font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:6px;
+  }
+  .tag-choice.selected{ border-color:var(--accent); background:#fff3e0; }
+  .tag-choice .tag-emoji{ font-size:1rem; }
+  #customSentimentRow{ display:flex; }
+  #customSentimentRow input{ padding:7px 10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; font-size:0.85rem; }
+
   .roster-list{ display:flex; flex-direction:column; gap:8px; margin-top:8px; max-height:220px; overflow-y:auto; }
   .roster-item{ display:flex; align-items:center; gap:10px; background:#f4f6f8; border-radius:10px; padding:6px 10px; }
   .roster-item canvas{ background:#dff5d0; border-radius:8px; }
@@ -322,8 +332,14 @@
     <select id="kudosFrom"></select>
     <label>To</label>
     <select id="kudosTo"></select>
-    <label>Sentiment</label>
-    <div class="crop-choices" id="kudosSentimentChoices"></div>
+    <label>Sentiment <span style="font-weight:400;color:#999;">(why you're recognizing them — unrelated to the seed you'll earn)</span></label>
+    <div class="tag-choices" id="kudosSentimentChoices"></div>
+    <div id="customSentimentRow" style="display:none; gap:8px; margin-top:8px;">
+      <input type="text" id="customSentimentEmoji" placeholder="🏷️" maxlength="4" style="width:56px; text-align:center; flex:none;">
+      <input type="text" id="customSentimentLabel" placeholder="Name your own sentiment, e.g. Customer Focus" maxlength="40" style="flex:1;">
+      <button class="btn-secondary" id="customSentimentAddBtn" style="flex:none;">Add</button>
+    </div>
+    <button class="btn-secondary" id="toggleCustomSentimentBtn" style="margin-top:8px; font-size:0.78rem;">+ Add a new sentiment tag</button>
     <label>Message</label>
     <textarea id="kudosMessage" placeholder="e.g. Thanks for always jumping in to help the team stay on track!"></textarea>
     <div class="modal-actions">
@@ -339,7 +355,8 @@
     <h2>❓ How to Play</h2>
     <ol style="font-size:0.9rem; line-height:1.6;">
       <li>This farm is <b>live and shared</b> — everyone who opens this page joins the same farm and sees each other in real time.</li>
-      <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one random seed into the shared Seed Bank.</li>
+      <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one <b>completely random</b> seed into the shared Seed Bank. Pick a sentiment that describes WHY you're recognizing them (Teamwork, Creativity, or your own custom tag) — the sentiment has no effect on which seed you get, it's purely about the recognition itself.</li>
+      <li>Don't see a sentiment that fits? Click <b>"+ Add a new sentiment tag"</b> in the Kudos modal to create your own (e.g. matching your team's values) — it's saved for everyone to reuse afterward.</li>
       <li><b>Till</b> a soil plot, then <b>Plant</b> — but you can only plant crop types the team has seeds for.</li>
       <li><b>Crops grow over real calendar days</b> — this is a "check in throughout the week" farm, not a one-sitting game. Each crop takes a different number of days, loosely matching how long it actually takes to grow in real life: 🥕 Carrot ~1 day, 🌽 Corn ~1.5 days, 🍅 Tomato ~2 days, 🌻 Sunflower ~3 days, 🍓 Strawberry ~4.5 days, 🎃 Pumpkin ~7 days (the max). <b>Watering is optional</b> and speeds things up a little (up to 3 waters, each shaving off some time) — but nobody can rush a crop to ripeness by clicking, real days always have to pass. Come back and check on your plots over the week!</li>
       <li><b>Harvest</b> once it's ready into the shared Harvest Basket.</li>
@@ -419,12 +436,12 @@ const CROP_GROWTH_MS = {
 };
 
 const CROPS = [
-  {id:'sunflower', emoji:'🌻', name:'Sunflower', meaning:'Positivity'},
-  {id:'carrot',    emoji:'🥕', name:'Carrot',    meaning:'Growth Mindset'},
-  {id:'strawberry',emoji:'🍓', name:'Strawberry',meaning:'Fun & Joy'},
-  {id:'corn',      emoji:'🌽', name:'Corn',      meaning:'Teamwork'},
-  {id:'pumpkin',   emoji:'🎃', name:'Pumpkin',   meaning:'Creativity'},
-  {id:'tomato',    emoji:'🍅', name:'Tomato',    meaning:'Great Work'}
+  {id:'sunflower', emoji:'🌻', name:'Sunflower'},
+  {id:'carrot',    emoji:'🥕', name:'Carrot'},
+  {id:'strawberry',emoji:'🍓', name:'Strawberry'},
+  {id:'corn',      emoji:'🌽', name:'Corn'},
+  {id:'pumpkin',   emoji:'🎃', name:'Pumpkin'},
+  {id:'tomato',    emoji:'🍅', name:'Tomato'}
 ];
 function cropEmoji(id){ const c = CROPS.find(x=>x.id===id); return c ? c.emoji : '❓'; }
 function cropInfo(id){ return CROPS.find(x=>x.id===id); }
@@ -1057,10 +1074,9 @@ function renderKudosFeed(){
   feed.innerHTML='';
   if(!state.kudosLog || state.kudosLog.length===0){ feed.innerHTML = '<p class="empty-note">No kudos yet — visit the Kudos Board to leave one and earn the team a seed! 💌</p>'; return; }
   [...state.kudosLog].reverse().forEach(k=>{
-    const info = cropInfo(k.cropId);
     const div = document.createElement('div');
     div.className='kudos-item';
-    div.innerHTML = `<div class="kwho">${info?info.emoji:'🌱'} ${escapeHtml(k.fromName)} → ${escapeHtml(k.toName)} <span style="font-weight:400;color:#777;">(${info?info.meaning:''})</span></div>
+    div.innerHTML = `<div class="kwho">${k.sentimentEmoji||'💌'} ${escapeHtml(k.fromName)} → ${escapeHtml(k.toName)} <span style="font-weight:400;color:#777;">(${escapeHtml(k.sentimentLabel||'')})</span></div>
       ${k.message?`<div class="kmsg">"${escapeHtml(k.message)}"</div>`:''}
       <div class="kwhen">${k.when}</div>`;
     feed.appendChild(div);
@@ -1191,6 +1207,29 @@ function populateKudosSelect(selectEl, excludeName){
   });
   if([...selectEl.options].some(o=>o.value===current)) selectEl.value = current;
 }
+let kudosSelectedSentimentId = null;
+function renderSentimentChoices(){
+  const wrap = document.getElementById('kudosSentimentChoices');
+  const prevSelected = kudosSelectedSentimentId;
+  wrap.innerHTML='';
+  const sentiments = state.sentiments || [];
+  if(prevSelected && sentiments.some(s=>s.id===prevSelected)){
+    kudosSelectedSentimentId = prevSelected;
+  } else {
+    kudosSelectedSentimentId = sentiments[0] ? sentiments[0].id : null;
+  }
+  sentiments.forEach(sent=>{
+    const div = document.createElement('div');
+    div.className='tag-choice' + (sent.id===kudosSelectedSentimentId ? ' selected':'');
+    div.innerHTML = `<span class="tag-emoji">${sent.emoji}</span>${escapeHtml(sent.label)}`;
+    div.onclick = ()=>{
+      wrap.querySelectorAll('.tag-choice').forEach(d=>d.classList.remove('selected'));
+      div.classList.add('selected');
+      kudosSelectedSentimentId = sent.id;
+    };
+    wrap.appendChild(div);
+  });
+}
 function openKudosModal(){
   const fromSel = document.getElementById('kudosFrom');
   const toSel = document.getElementById('kudosTo');
@@ -1202,37 +1241,45 @@ function openKudosModal(){
   });
   populateKudosSelect(toSel, fromSel.value);
   fromSel.onchange = ()=> populateKudosSelect(toSel, fromSel.value);
-  const wrap = document.getElementById('kudosSentimentChoices');
-  wrap.innerHTML='';
-  let selected = CROPS[0].id;
-  CROPS.forEach(cr=>{
-    const div = document.createElement('div');
-    div.className='crop-choice' + (cr.id===selected?' selected':'');
-    div.innerHTML = `<span class="emoji">${cr.emoji}</span>${cr.meaning}`;
-    div.onclick = ()=>{
-      wrap.querySelectorAll('.crop-choice').forEach(d=>d.classList.remove('selected'));
-      div.classList.add('selected'); selected = cr.id;
-    };
-    wrap.appendChild(div);
-  });
-  document.getElementById('kudosOverlay')._getSelected = ()=>selected;
+  renderSentimentChoices();
+  document.getElementById('customSentimentRow').style.display='none';
+  document.getElementById('customSentimentEmoji').value='';
+  document.getElementById('customSentimentLabel').value='';
   document.getElementById('kudosMessage').value='';
   document.getElementById('kudosOverlay').style.display='flex';
 }
 document.getElementById('kudosCancel').onclick = ()=> document.getElementById('kudosOverlay').style.display='none';
+document.getElementById('toggleCustomSentimentBtn').onclick = ()=>{
+  const row = document.getElementById('customSentimentRow');
+  row.style.display = row.style.display==='none' ? 'flex' : 'none';
+  if(row.style.display==='flex') document.getElementById('customSentimentLabel').focus();
+};
+document.getElementById('customSentimentAddBtn').onclick = async ()=>{
+  const emoji = document.getElementById('customSentimentEmoji').value.trim();
+  const label = document.getElementById('customSentimentLabel').value.trim();
+  if(!label){ toast('Give your new sentiment a name first!'); return; }
+  const res = await apiCall('/api/sentiments', {emoji, label});
+  if(!res.ok){ toast('⚠️ '+res.error); return; }
+  kudosSelectedSentimentId = res.sentimentId;
+  renderSentimentChoices();
+  document.getElementById('customSentimentRow').style.display='none';
+  document.getElementById('customSentimentEmoji').value='';
+  document.getElementById('customSentimentLabel').value='';
+  toast(res.reused ? `Using existing sentiment tag!` : `🏷️ Added new sentiment tag "${label}" for the whole team to use!`);
+};
 document.getElementById('kudosConfirm').onclick = async ()=>{
   const overlay = document.getElementById('kudosOverlay');
   const fromName = document.getElementById('kudosFrom').value;
   const toName = document.getElementById('kudosTo').value;
   if(fromName === toName){ toast("⚠️ You can't send yourself a kudos — pick a teammate!"); return; }
-  const cropId = overlay._getSelected();
+  if(!kudosSelectedSentimentId){ toast('Please choose a sentiment for this kudos.'); return; }
   const message = document.getElementById('kudosMessage').value.trim();
-  const res = await apiCall('/api/kudos', {fromName, toName, cropId, message});
+  const res = await apiCall('/api/kudos', {fromName, toName, sentimentId:kudosSelectedSentimentId, message});
   overlay.style.display='none';
   if(res.ok){
     const seedInfo = cropInfo(res.seedAwarded);
     confettiBurst();
-    toast(`💌 Posted a kudos for ${toName}! The team earned ${seedInfo?seedInfo.emoji:'🌱'} a ${seedInfo?seedInfo.name:'seed'}!`);
+    toast(`💌 Posted a kudos for ${toName}! The team earned a surprise seed: ${seedInfo?seedInfo.emoji:'🌱'} ${seedInfo?seedInfo.name:'seed'}!`);
     lastKudosTs = Date.now();
   } else if(res.error){ toast('⚠️ '+res.error); }
   renderHUD();
@@ -1455,8 +1502,7 @@ document.getElementById('btnExport').onclick = ()=>{
   text += `Exported: ${new Date().toLocaleString()}\n`;
   text += `Total kudos sent: ${state.totalKudos||0} | Total harvests: ${state.totalHarvests} | Total animal products: ${state.totalProducts}\n\n`;
   state.kudosLog.forEach(k=>{
-    const info = cropInfo(k.cropId);
-    text += `${info?info.emoji:''} ${k.fromName} → ${k.toName} (${info?info.meaning:''})\n`;
+    text += `${k.sentimentEmoji||''} ${k.fromName} → ${k.toName} (${k.sentimentLabel||''})\n`;
     if(k.message) text += `   "${k.message}"\n`;
     text += `   ${k.when}\n\n`;
   });

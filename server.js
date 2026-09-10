@@ -61,6 +61,28 @@ const HAPPY_MAX = 5;
 
 const CROP_IDS = ['sunflower','carrot','strawberry','corn','pumpkin','tomato'];
 
+/* ============ Kudos Sentiments ============
+   Sentiments (why you're recognizing someone) are now fully
+   DECOUPLED from crops/seeds. Sending a kudos always awards a
+   uniformly random seed regardless of which sentiment was picked
+   — the sentiment is purely about WHY you're giving recognition,
+   the seed is a random surprise reward for doing so. Teams can
+   also add their own custom sentiment tags (e.g. to match company
+   values), which persist for everyone to reuse afterward. */
+const DEFAULT_SENTIMENTS = [
+  {id:'sent_positivity',  emoji:'🌟', label:'Positivity'},
+  {id:'sent_growth',      emoji:'🌱', label:'Growth Mindset'},
+  {id:'sent_funjoy',      emoji:'🎉', label:'Fun & Joy'},
+  {id:'sent_teamwork',    emoji:'🤝', label:'Teamwork'},
+  {id:'sent_creativity',  emoji:'💡', label:'Creativity'},
+  {id:'sent_greatwork',   emoji:'👏', label:'Great Work'},
+  {id:'sent_aboveb',      emoji:'🙌', label:'Above & Beyond'},
+  {id:'sent_reliability', emoji:'🎯', label:'Reliability'},
+  {id:'sent_problemsolve',emoji:'🧠', label:'Problem Solving'},
+  {id:'sent_support',     emoji:'❤️', label:'Support'}
+];
+const MAX_SENTIMENTS = 40; // generous cap so custom tags can't grow unbounded
+
 /* Grow durations in milliseconds, scaled to real DAYS (max ~1 week
    for the slowest crop). This object is intentionally mutable —
    never mutated in production, but a local test harness can shrink
@@ -137,6 +159,7 @@ function defaultState(){
     animals: ANIMALS_DEF.map(a=>({...a, happiness:0})),
     seeds: emptySeedBank(),
     inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0, egg:0, milk:0, wool:0},
+    sentiments: DEFAULT_SENTIMENTS.map(s=>({...s})), // team's kudos sentiment tags — default set + any custom ones added later
     kudosLog:[],
     stats:{givers:{}, contributors:{}, caretakers:{}},
     totalHarvests:0,
@@ -382,18 +405,48 @@ function apiFeed(body){
   return {ok:true, fed:likedCrop, gain:FEED_GAIN, produced};
 }
 
-/* Sending a kudos is the ONLY source of seeds. Self-kudos blocked. */
+/* Adds a new custom kudos sentiment tag (e.g. to match a company's
+   values), or returns the existing one if an equivalent label
+   already exists (case-insensitive match) — this prevents teams
+   from accidentally creating near-duplicate tags. Persists so the
+   whole team can reuse it going forward. */
+function apiAddSentiment(body){
+  const label = (body.label||'').toString().trim().slice(0,40);
+  if(!label) return {ok:false, error:'Sentiment name is required.'};
+  const emoji = (body.emoji||'').toString().trim().slice(0,8) || '🏷️';
+  const existing = state.sentiments.find(s=> s.label.toLowerCase() === label.toLowerCase());
+  if(existing) return {ok:true, sentimentId:existing.id, reused:true};
+  if(state.sentiments.length >= MAX_SENTIMENTS) return {ok:false, error:'The sentiment list is full — try reusing an existing one!'};
+  const id = 'sent_' + uid();
+  state.sentiments.push({id, emoji, label});
+  bump();
+  return {ok:true, sentimentId:id, reused:false};
+}
+
+/* Sending a kudos is the ONLY source of seeds. Self-kudos blocked.
+   The sentiment picked (why you're recognizing someone) is stored
+   as a snapshot (emoji+label at time of sending) so the kudos wall
+   stays accurate even if a sentiment is edited/removed later. The
+   seed awarded is ALWAYS uniformly random and fully independent of
+   the sentiment chosen — recognition and reward are decoupled by
+   design. */
 function apiKudos(body){
   const fromName = (body.fromName||'').toString().trim().slice(0,40);
   const toName = (body.toName||'').toString().trim().slice(0,40);
-  const cropId = CROP_IDS.includes(body.cropId) ? body.cropId : CROP_IDS[0];
   const message = (body.message||'').toString().trim().slice(0,500);
   if(!fromName || !toName) return {ok:false, error:'From/To required.'};
   if(fromName.toLowerCase() === toName.toLowerCase()) return {ok:false, error:"You can't send yourself a kudos — recognize a teammate instead!"};
-  state.kudosLog.push({fromName, toName, cropId, message, when:new Date().toLocaleString(), whenTs: Date.now()});
+  const sentiment = state.sentiments.find(s=> s.id === body.sentimentId);
+  if(!sentiment) return {ok:false, error:'Please choose a sentiment for this kudos.'};
+  state.kudosLog.push({
+    fromName, toName, message,
+    sentimentId: sentiment.id, sentimentEmoji: sentiment.emoji, sentimentLabel: sentiment.label,
+    when:new Date().toLocaleString(), whenTs: Date.now()
+  });
   if(state.kudosLog.length > MAX_KUDOS_LOG) state.kudosLog.shift();
   state.stats.givers[fromName] = (state.stats.givers[fromName]||0) + 1;
   state.totalKudos++;
+  // The random seed reward is intentionally decoupled from the sentiment above.
   const seedAwarded = randomCropId();
   state.seeds[seedAwarded] = (state.seeds[seedAwarded]||0) + 1;
   bump();
@@ -427,9 +480,11 @@ function apiRemoveDecor(body){
 function apiResetSeason(){
   const keepFarmers = state.farmers;
   const keepTeamName = state.teamName;
+  const keepSentiments = state.sentiments; // the team's kudos vocabulary carries over between seasons
   state = defaultState();
   state.farmers = keepFarmers;
   state.teamName = keepTeamName;
+  state.sentiments = keepSentiments;
   bump();
   return {ok:true};
 }
@@ -445,6 +500,7 @@ const ROUTES = {
   '/api/harvest': apiHarvest,
   '/api/feed': apiFeed,
   '/api/kudos': apiKudos,
+  '/api/sentiments': apiAddSentiment,
   '/api/decorate': apiDecorate,
   '/api/remove-decor': apiRemoveDecor,
   '/api/reset-season': apiResetSeason

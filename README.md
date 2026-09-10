@@ -10,13 +10,26 @@ week" activity rather than something you finish in one sitting.
 ## 🌱 The kudos economy
 
 1. **Seeds only come from sending kudos.** Recognize a teammate on the Kudos
-   Board and the *team* earns one random seed into a shared Seed Bank.
-2. **Planting spends a seed** — you can only plant crop types the team has
+   Board and the *team* earns one **completely random** seed into a shared
+   Seed Bank.
+2. **Sentiment ≠ seed.** When you send a kudos, you pick a *sentiment* — why
+   you're recognizing them (Teamwork, Creativity, Positivity, etc.). This is
+   entirely decoupled from the seed you earn: the sentiment communicates the
+   "why," the seed is a random surprise reward for doing so. They're
+   intentionally unrelated.
+3. **Tailor your own sentiments.** The default set (Positivity, Growth
+   Mindset, Fun & Joy, Teamwork, Creativity, Great Work, Above & Beyond,
+   Reliability, Problem Solving, Support) is just a starting point — anyone
+   can click **"+ Add a new sentiment tag"** in the Kudos modal to create a
+   custom one (e.g. to match your company's specific values). It's saved for
+   the whole team to reuse afterward, and survives "New Season" resets since
+   it's part of your team's shared vocabulary, not per-season game state.
+4. **Planting spends a seed** — you can only plant crop types the team has
    seeds banked for.
-3. **Harvesting fills a shared Harvest Basket.**
-4. **Animals are picky eaters** — chickens ONLY eat corn 🌽, cows ONLY eat
+5. **Harvesting fills a shared Harvest Basket.**
+6. **Animals are picky eaters** — chickens ONLY eat corn 🌽, cows ONLY eat
    carrots 🥕, sheep ONLY eat strawberries 🍓. No substitutes.
-5. **Leaderboards** track Top Kudos Givers alongside Master Growers and Best
+7. **Leaderboards** track Top Kudos Givers alongside Master Growers and Best
    Caretakers.
 
 ## ⏱️ Growth timing — now measured in days (max ~1 week)
