@@ -10,6 +10,7 @@
     --card-bg:#ffffffee; --accent:#ff9f43; --accent2:#ff6b6b;
     --green:#4c9a5f; --green-dark:#357a45; --text:#2d3436;
     --radius:16px; --shadow:0 8px 20px rgba(0,0,0,0.12);
+    --content-max:1360px;
   }
   *{box-sizing:border-box;}
   body{
@@ -29,8 +30,8 @@
   .conn-badge.offline{ background:#ffe0e0; color:#a12727; }
   .conn-dot{ width:8px; height:8px; border-radius:50%; background:currentColor; }
 
-  .farm-level-bar{
-    max-width:760px; margin:14px auto 0; padding:10px 16px;
+  .bar{
+    max-width:var(--content-max); margin:14px auto 0; padding:10px 16px;
     background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow);
   }
   .farm-level-bar .row{ display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600; }
@@ -38,8 +39,7 @@
   .level-progress-fill{ height:100%; background:linear-gradient(90deg,var(--green),var(--accent)); transition:width .5s ease; }
 
   .hud-bar{
-    max-width:760px; margin:12px auto; padding:10px 16px; background:var(--card-bg);
-    border-radius:var(--radius); box-shadow:var(--shadow); display:flex; flex-wrap:wrap;
+    margin-top:12px; display:flex; flex-wrap:wrap;
     align-items:center; gap:12px; justify-content:space-between; font-size:0.85rem;
   }
   .hud-bar .who{ display:flex; align-items:center; gap:8px; font-weight:700; }
@@ -57,17 +57,26 @@
   .btn-danger{ background:var(--accent2); color:#fff; }
   .btn-kudos{ background:#ff6b9d; color:#fff; font-size:0.95rem; padding:10px 18px; }
 
-  main{ max-width:1080px; margin:0 auto 40px; padding:0 16px; }
+  main{ max-width:var(--content-max); margin:0 auto 40px; padding:0 16px; }
 
   .kudos-cta{
-    max-width:760px; margin:14px auto 0; padding:14px 18px; background:linear-gradient(135deg,#fff3e0,#ffe0ec);
-    border-radius:var(--radius); box-shadow:var(--shadow); display:flex; align-items:center; justify-content:space-between;
-    gap:12px; flex-wrap:wrap;
+    margin-top:14px; display:flex; align-items:center; justify-content:space-between;
+    gap:12px; flex-wrap:wrap; background:linear-gradient(135deg,#fff3e0,#ffe0ec);
   }
   .kudos-cta .msg{ font-size:0.88rem; font-weight:600; color:#7a3b1a; }
   .kudos-cta .msg span{ font-weight:800; }
 
-  .game-wrap{ display:flex; justify-content:center; margin-top:14px; }
+  /* Two-column layout: game on the left, kudos wall + leaderboards sidebar on the right */
+  .layout-grid{
+    display:grid; grid-template-columns:1fr 350px; gap:20px; align-items:start; margin-top:16px;
+  }
+  @media (max-width:1050px){
+    .layout-grid{ grid-template-columns:1fr; }
+    .side-col{ position:static !important; }
+  }
+  .side-col{ position:sticky; top:16px; display:flex; flex-direction:column; gap:18px; }
+
+  .game-wrap{ display:flex; justify-content:center; }
   #gameCanvas{
     background:#8fd17c; border:10px solid #7a5230; border-radius:14px;
     box-shadow:var(--shadow); image-rendering:pixelated; max-width:100%; height:auto;
@@ -76,29 +85,29 @@
   .controls-hint{ text-align:center; font-size:0.82rem; color:#446; margin-top:8px; }
 
   .action-toolbar{
-    max-width:760px; margin:14px auto 0; padding:10px 14px; background:var(--card-bg);
-    border-radius:var(--radius); box-shadow:var(--shadow); display:flex; flex-wrap:wrap; gap:8px;
-    justify-content:center;
+    margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
   }
   .act-btn{
     display:flex; flex-direction:column; align-items:center; gap:2px; min-width:84px;
     background:#eef3ea; color:#2d3436; font-size:1.3rem; font-weight:700; padding:8px 10px 6px;
     border-radius:12px; box-shadow:0 3px 0 rgba(0,0,0,0.12); transition:all .12s ease; opacity:0.4;
-    cursor:not-allowed; pointer-events:none;
+    cursor:not-allowed; pointer-events:none; position:relative;
   }
-  .act-btn span{ font-size:0.68rem; }
+  .act-btn span.lbl{ font-size:0.68rem; }
   .act-btn.enabled{
     background:linear-gradient(180deg,#fff3d6,#ffe0a3); opacity:1; cursor:pointer; pointer-events:auto;
     box-shadow:0 3px 0 rgba(255,159,67,0.5);
   }
   .act-btn.enabled:hover{ transform:translateY(-2px); }
   .act-btn.enabled:active{ transform:translateY(1px); box-shadow:0 1px 0 rgba(255,159,67,0.5); }
-  .act-btn.kudos-highlight{ background:linear-gradient(180deg,#ffd3e6,#ff9fc4); opacity:1; cursor:pointer; pointer-events:auto; }
-
-  .inventory-panel{
-    max-width:760px; margin:14px auto 0; padding:12px 16px; background:var(--card-bg);
-    border-radius:var(--radius); box-shadow:var(--shadow);
+  .act-badge{
+    position:absolute; top:-6px; right:-6px; background:#ff6b6b; color:#fff; font-size:0.62rem;
+    font-weight:800; border-radius:20px; padding:1px 6px; min-width:16px; text-align:center;
+    box-shadow:0 2px 4px rgba(0,0,0,0.25); display:none;
   }
+  .act-badge.show{ display:block; }
+
+  .inventory-panel{ margin-top:14px; }
   .inv-group{ margin-bottom:10px; }
   .inv-group:last-child{ margin-bottom:0; }
   .inv-group-title{ font-size:0.72rem; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.03em; margin-bottom:4px; }
@@ -108,19 +117,17 @@
   .inv-item.zero .n{ color:#bbb; }
   .inv-item.zero{ opacity:0.55; }
 
-  .lower-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:18px; margin-top:22px; }
-  @media (max-width:800px){ .lower-grid{ grid-template-columns:1fr; } }
   .panel{ background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; }
   .panel h3{ margin-top:0; }
-  .kudos-feed{ max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; }
+  .kudos-feed{ max-height:340px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; }
   .kudos-item{ background:#f9f9f9; border-left:4px solid var(--accent); border-radius:8px; padding:8px 10px; font-size:0.85rem; }
   .kudos-item .kwho{ font-weight:700; }
   .kudos-item .kmsg{ margin-top:2px; }
   .kudos-item .kwhen{ color:#999; font-size:0.7rem; margin-top:2px; }
   .empty-note{ color:#888; font-size:0.85rem; text-align:center; padding:16px 0; }
 
-  .board-row{ display:flex; gap:14px; flex-wrap:wrap; }
-  .board-col{ flex:1; min-width:150px; }
+  .board-col{ margin-bottom:14px; }
+  .board-col:last-child{ margin-bottom:0; }
   .board-col h4{ margin:0 0 6px; font-size:0.82rem; color:#666; }
   .leaderboard-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
   .leaderboard-list li{ display:flex; justify-content:space-between; background:#f9f9f9; padding:6px 10px; border-radius:8px; font-size:0.8rem; }
@@ -164,7 +171,8 @@
   .crop-choice{ border:2px solid transparent; border-radius:10px; padding:8px 4px; text-align:center; cursor:pointer;
     background:#f4f6f8; font-size:0.75rem; position:relative; }
   .crop-choice .emoji{ font-size:1.5rem; display:block; }
-  .crop-choice .seedcount{ display:block; font-size:0.68rem; color:#888; margin-top:2px; }
+  .crop-choice .seedcount{ display:block; font-size:0.66rem; color:#888; margin-top:2px; }
+  .crop-choice .growtime{ display:block; font-size:0.66rem; color:#357a45; font-weight:700; }
   .crop-choice.selected{ border-color:var(--accent); background:#fff3e0; }
   .crop-choice.disabled{ opacity:0.35; cursor:not-allowed; pointer-events:none; }
 
@@ -183,12 +191,12 @@
   <div class="conn-badge offline" id="connBadge"><span class="conn-dot"></span><span id="connText">Connecting…</span></div>
 </header>
 
-<div class="farm-level-bar">
+<div class="bar farm-level-bar">
   <div class="row"><span id="levelName">🌱 Empty Field</span><span id="levelCount">0 points</span></div>
   <div class="level-progress"><div class="level-progress-fill" id="levelFill" style="width:0%"></div></div>
 </div>
 
-<div class="hud-bar">
+<div class="bar hud-bar">
   <div class="who">
     🧑‍🌾 Online now:
     <div class="online-list" id="onlineList"></div>
@@ -202,49 +210,51 @@
   </div>
 </div>
 
-<div class="kudos-cta">
+<div class="bar kudos-cta">
   <div class="msg">💌 Seeds only come from sending kudos! Your team has earned <span id="totalSeedsMsg">0</span> seeds from <span id="totalKudosMsg">0</span> kudos so far.</div>
   <button class="btn-kudos" id="btnSendKudosCta">💌 Send a Kudos</button>
 </div>
 
 <main>
-  <div class="game-wrap">
-    <canvas id="gameCanvas" width="756" height="504" tabindex="0"></canvas>
-  </div>
-  <p class="controls-hint">🎮 Move: <b>Arrow keys / WASD</b> or <b>click anywhere</b> on the farm to walk there &nbsp; • &nbsp; 🖐 Interact: <b>E</b> / <b>Space</b> or use the action buttons below</p>
+  <div class="layout-grid">
+    <div class="game-col">
+      <div class="game-wrap">
+        <canvas id="gameCanvas" width="936" height="624" tabindex="0"></canvas>
+      </div>
+      <p class="controls-hint">🎮 Move: <b>Arrow keys / WASD</b> or <b>click anywhere</b> on the farm to walk there &nbsp; • &nbsp; 🖐 Interact: <b>E</b> / <b>Space</b> or use the action buttons below</p>
 
-  <div class="action-toolbar" id="actionToolbar">
-    <button class="act-btn" id="actTill" data-act="till">🛠️<span>Till Soil</span></button>
-    <button class="act-btn" id="actPlant" data-act="plant">🌱<span>Plant</span></button>
-    <button class="act-btn" id="actWater" data-act="water">💧<span>Water</span></button>
-    <button class="act-btn" id="actHarvest" data-act="harvest">🧺<span>Harvest</span></button>
-    <button class="act-btn" id="actFeed" data-act="feed">🍽️<span>Feed Animal</span></button>
-    <button class="act-btn" id="actKudos" data-act="kudos">💌<span>Leave Kudos</span></button>
-  </div>
+      <div class="panel action-toolbar" id="actionToolbar">
+        <button class="act-btn" id="actTill" data-act="till">🛠️<span class="lbl">Till Soil</span></button>
+        <button class="act-btn" id="actPlant" data-act="plant">🌱<span class="lbl">Plant</span></button>
+        <button class="act-btn" id="actWater" data-act="water">💧<span class="lbl">Water</span></button>
+        <button class="act-btn" id="actHarvest" data-act="harvest">🧺<span class="lbl">Harvest</span><span class="act-badge" id="harvestBadge">0</span></button>
+        <button class="act-btn" id="actFeed" data-act="feed">🍽️<span class="lbl">Feed Animal</span></button>
+        <button class="act-btn" id="actKudos" data-act="kudos">💌<span class="lbl">Leave Kudos</span></button>
+      </div>
 
-  <div class="inventory-panel">
-    <div class="inv-group">
-      <div class="inv-group-title">🌱 Seed Bank (earned from kudos — spend to plant)</div>
-      <div class="inv-row" id="seedStrip"></div>
+      <div class="panel inventory-panel">
+        <div class="inv-group">
+          <div class="inv-group-title">🌱 Seed Bank (earned from kudos — spend to plant)</div>
+          <div class="inv-row" id="seedStrip"></div>
+        </div>
+        <div class="inv-group">
+          <div class="inv-group-title">🧺 Harvest Basket (feed to animals)</div>
+          <div class="inv-row" id="harvestStrip"></div>
+        </div>
+        <div class="inv-group">
+          <div class="inv-group-title">🐾 Animal Products</div>
+          <div class="inv-row" id="productStrip"></div>
+        </div>
+      </div>
     </div>
-    <div class="inv-group">
-      <div class="inv-group-title">🧺 Harvest Basket (feed to animals)</div>
-      <div class="inv-row" id="harvestStrip"></div>
-    </div>
-    <div class="inv-group">
-      <div class="inv-group-title">🐾 Animal Products</div>
-      <div class="inv-row" id="productStrip"></div>
-    </div>
-  </div>
 
-  <div class="lower-grid">
-    <div class="panel">
-      <h3>💌 Kudos Wall</h3>
-      <div class="kudos-feed" id="kudosFeed"></div>
-    </div>
-    <div class="panel">
-      <h3>🏆 Leaderboards</h3>
-      <div class="board-row">
+    <div class="side-col">
+      <div class="panel">
+        <h3>💌 Kudos Wall</h3>
+        <div class="kudos-feed" id="kudosFeed"></div>
+      </div>
+      <div class="panel">
+        <h3>🏆 Leaderboards</h3>
         <div class="board-col"><h4>Top Kudos Givers</h4><ul class="leaderboard-list" id="giverBoard"></ul></div>
         <div class="board-col"><h4>Master Growers</h4><ul class="leaderboard-list" id="growerBoard"></ul></div>
         <div class="board-col"><h4>Best Caretakers</h4><ul class="leaderboard-list" id="caretakerBoard"></ul></div>
@@ -329,10 +339,11 @@
     <h2>❓ How to Play</h2>
     <ol style="font-size:0.9rem; line-height:1.6;">
       <li>This farm is <b>live and shared</b> — everyone who opens this page joins the same farm and sees each other in real time.</li>
-      <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one random seed into the shared Seed Bank. No kudos, no seeds, no crops — so keep the recognition flowing!</li>
-      <li><b>Till</b> a soil plot, then <b>Plant</b> — but you can only plant crop types the team actually has seeds for. Check the Seed Bank before you till!</li>
-      <li><b>Water</b> a few times, then <b>Harvest</b> into the shared Harvest Basket.</li>
-      <li><b>Animals are picky eaters</b> — chickens ONLY eat corn 🌽, cows ONLY eat carrots 🥕, sheep ONLY eat strawberries 🍓. You have to grow their exact favorite to feed them — no substitutes!</li>
+      <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one random seed into the shared Seed Bank.</li>
+      <li><b>Till</b> a soil plot, then <b>Plant</b> — but you can only plant crop types the team has seeds for.</li>
+      <li><b>Crops grow over real time</b> — each crop type takes a different amount of time, loosely based on how long it actually takes to grow in real life (fast root veggies like carrots are quicker; pumpkins and strawberries take longer). <b>Watering is optional</b> and speeds things up a little (up to 3 waters, each shaving off some time) — but you can't rush a crop to ripeness by spam-clicking, real time always has to pass.</li>
+      <li><b>Harvest</b> once it's ready into the shared Harvest Basket.</li>
+      <li><b>Animals are picky eaters</b> — chickens ONLY eat corn 🌽, cows ONLY eat carrots 🥕, sheep ONLY eat strawberries 🍓. No substitutes!</li>
       <li>Keep animals happy and they'll reward the team with eggs 🥚, milk 🥛, and wool 🧶.</li>
       <li>Check the <b>leaderboards</b> — Top Kudos Givers keeps everyone accountable for remembering to recognize the team, not just farming!</li>
       <li>Open <b>🏗️ Build</b> to spend the team's harvest points on farm decorations that unlock as everyone plays.</li>
@@ -377,32 +388,33 @@
 /* ============================================================
    Team Farm Explorer — Multiplayer Client
    ------------------------------------------------------------
-   Shared game state (farmers, crops, animals, seed bank, harvest
-   basket, kudos, decorations) lives on the server. This client:
-     1. Renders everything from a local mirror of that state.
-     2. Polls GET /api/state every ~900ms to pick up other
-        players' changes.
-     3. Calls POST /api/* for every action the local player
-        takes, then merges the response's updated state
-        immediately (so your own actions feel instant).
-     4. Animates your own farmer locally for smooth walking,
-        and gently interpolates every other farmer's position
-        between polls so movement doesn't look like teleporting.
-
-   ECONOMY: seeds only come from sending kudos (random crop type
-   per kudos). Planting spends a seed of the chosen type. Animals
-   only accept their own liked crop when fed. See server.js for
-   the authoritative rules — this file mirrors them for instant
-   client-side validation/UX, but the server always has final say.
+   Mirrors server.js's economy + growth-timing rules for instant
+   client-side UX (countdowns, button gating), but the server is
+   always the source of truth — every action is re-validated there.
    ============================================================ */
 
-/* ============ Constants (must match server thresholds) ============ */
-const TILE = 42, COLS = 18, ROWS = 12;
-const WATER_NEEDED = 4;
+/* ============ Constants (must match server) ============ */
+const TILE = 52, COLS = 18, ROWS = 12;
+const BASE_TILE = 42; // original reference size the farmer sprite was designed at
+const CHAR_SCALE = TILE / BASE_TILE;
 const HAPPY_MAX = 5;
 const MOVE_STEP = 0.18;
 const POLL_INTERVAL_MS = 900;
 const REMOTE_LERP = 0.22;
+const MAX_WATER_BOOSTS = 3;
+const REDUCTION_PER_WATER = 0.10;
+const KUDOS_REMINDER_MS = 5 * 60 * 1000; // gentle nudge if no kudos sent in 5 min
+
+/* Grow durations mirrored from server.js — see that file's header
+   comment for the real-world "days to maturity" this is based on. */
+const CROP_GROWTH_MS = {
+  carrot:     3.5 * 60 * 1000,
+  corn:       3.75 * 60 * 1000,
+  tomato:     3.75 * 60 * 1000,
+  sunflower:  4.25 * 60 * 1000,
+  strawberry: 5   * 60 * 1000,
+  pumpkin:    5.5 * 60 * 1000
+};
 
 const CROPS = [
   {id:'sunflower', emoji:'🌻', name:'Sunflower', meaning:'Positivity'},
@@ -414,6 +426,11 @@ const CROPS = [
 ];
 function cropEmoji(id){ const c = CROPS.find(x=>x.id===id); return c ? c.emoji : '❓'; }
 function cropInfo(id){ return CROPS.find(x=>x.id===id); }
+function formatMMSS(ms){
+  const secs = Math.max(0, Math.ceil(ms/1000));
+  const mm = Math.floor(secs/60), ss = secs%60;
+  return `${mm}:${String(ss).padStart(2,'0')}`;
+}
 
 const ANIMAL_DISPLAY = {
   chicken1:{emoji:'🐔'}, chicken2:{emoji:'🐔'}, cow:{emoji:'🐄'}, sheep:{emoji:'🐑'}
@@ -454,7 +471,7 @@ function decorInfo(id){ return DECORATIONS.find(d=>d.id===id); }
 const DIRS = { up:[-1,0], down:[1,0], left:[0,-1], right:[0,1] };
 const OBSTACLES = new Set(['tree','house','barn','fence','water']);
 
-/* ============ Grid (mirrors server exactly, for local rendering + pathfinding) ============ */
+/* ============ Grid (mirrors server exactly) ============ */
 let grid = [];
 function buildGrid(){
   const g = [];
@@ -480,8 +497,18 @@ function buildGrid(){
 function isObstacle(t){ return OBSTACLES.has(t); }
 function cellKey(r,c){ return r+','+c; }
 
+/* ============ Growth-timing helpers (mirror server) ============ */
+function effectiveDurationMs(cell){
+  const base = CROP_GROWTH_MS[cell.type] || 0;
+  const boosts = Math.min(cell.waterCount||0, MAX_WATER_BOOSTS);
+  return base * (1 - REDUCTION_PER_WATER*boosts);
+}
+function readyAtMs(cell){ return (cell.plantedAt||0) + effectiveDurationMs(cell); }
+function isReady(cell){ return !!cell.type && Date.now() >= readyAtMs(cell); }
+function remainingMsFor(cell){ return Math.max(0, readyAtMs(cell) - Date.now()); }
+
 /* ============ Networking ============ */
-const PLAYER_ID_KEY = 'teamFarmPlayerId_v2';
+const PLAYER_ID_KEY = 'teamFarmPlayerId_v3';
 let myPlayerId = null;
 let state = {
   teamName:'', farmers:[], crops:{}, animals:[],
@@ -495,9 +522,7 @@ let isConnected = false;
 async function apiCall(pathName, body){
   try{
     const res = await fetch(pathName, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body||{})
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body||{})
     });
     const json = await res.json();
     if(json.state){ state = json.state; }
@@ -513,9 +538,7 @@ async function pollState(){
     const res = await fetch('/api/state', {cache:'no-store'});
     const json = await res.json();
     if(json.ok){ state = json.state; setConnected(true); renderHUD(); }
-  }catch(e){
-    setConnected(false);
-  }
+  }catch(e){ setConnected(false); }
 }
 function setConnected(ok){
   if(ok===isConnected) return;
@@ -531,9 +554,9 @@ function totalSeeds(){ return Object.values(state.seeds||{}).reduce((a,b)=>a+b,0
 function myFarmer(){ return state.farmers.find(f=>f.id===myPlayerId); }
 function animalAt(r,c){ return state.animals.find(a=>a.r===r && a.c===c); }
 
-/* ============ Player runtime (local animated avatar) ============ */
+/* ============ Player runtime ============ */
 let player = { r:1, c:5, facing:'down', pixelX:5*TILE, pixelY:1*TILE, fromX:5*TILE, fromY:1*TILE, toX:5*TILE, toY:1*TILE, animProgress:1, path:[], onArrive:null };
-let remoteVisual = {}; // farmerId -> {x,y} smoothly interpolated pixel position
+let remoteVisual = {};
 
 /* ============ Build Mode state ============ */
 let placementModeActive = false;
@@ -603,13 +626,31 @@ function drawFarmland(r,c,x,y){
     ctx.strokeStyle='rgba(0,0,0,0.15)'; ctx.lineWidth=1;
     for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(x+2,y+i*TILE/4); ctx.lineTo(x+TILE-2,y+i*TILE/4); ctx.stroke(); }
   }
-  if(stage===2 && cell){
-    const pct = cell.water/WATER_NEEDED;
-    ctx.font=(TILE*(0.28+0.22*pct))+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(pct<0.5?'🌱':'🌿', x+TILE/2, y+TILE/2);
-  } else if(stage===3 && cell){
-    ctx.font=(TILE*0.55)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(cropEmoji(cell.type), x+TILE/2, y+TILE/2);
+  if(stage===2 && cell && cell.type){
+    const dur = effectiveDurationMs(cell);
+    const elapsed = Date.now() - (cell.plantedAt||0);
+    const pct = dur>0 ? Math.min(1, elapsed/dur) : 1;
+    const ready = pct>=1;
+    if(ready){
+      // pulsing golden "ready to harvest" glow behind the mature crop
+      const pulse = 0.35 + 0.25*Math.sin(Date.now()/260);
+      const grad = ctx.createRadialGradient(x+TILE/2,y+TILE/2,2,x+TILE/2,y+TILE/2,TILE*0.55);
+      grad.addColorStop(0, `rgba(255,215,0,${pulse})`);
+      grad.addColorStop(1, 'rgba(255,215,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x,y,TILE,TILE);
+    }
+    ctx.font=(TILE*(0.28+0.27*pct))+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(ready ? cropEmoji(cell.type) : (pct<0.5?'🌱':'🌿'), x+TILE/2, y+TILE*0.42);
+    // countdown / ready label, drawn on a small pill for legibility against any background
+    const label = ready ? 'Ready!' : formatMMSS(dur-elapsed);
+    ctx.font=(TILE*0.17)+'px sans-serif';
+    const labelW = ctx.measureText(label).width;
+    const pillX = x+TILE/2-labelW/2-5, pillY = y+TILE*0.78, pillW = labelW+10, pillH = TILE*0.17;
+    ctx.fillStyle = ready ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.85)';
+    roundRect(ctx, pillX, pillY, pillW, pillH, pillH/2); ctx.fill();
+    ctx.fillStyle = ready ? '#7a5b00' : '#2d3436';
+    ctx.fillText(label, x+TILE/2, pillY+pillH/2+1);
   }
 }
 
@@ -635,32 +676,36 @@ function drawAnimal(a){
   ctx.fillText(cropEmoji(a.likes), x+TILE*0.82, y+TILE*0.9);
 }
 
-function drawFarmer(c,cx,cy,farmer,facing,bob){
+/* scale=1 keeps the original tuned size (used for creator preview + roster
+   mini icons); the main game view passes CHAR_SCALE so farmers stay
+   proportional to the (now larger) tile size. */
+function drawFarmer(c,cx,cy,farmer,facing,bob,scale){
   if(!farmer) return;
-  const bobY = Math.sin(bob*2)*1.5;
+  const s = scale || 1;
+  const bobY = Math.sin(bob*2)*1.5*s;
   const y = cy + bobY;
   c.fillStyle = farmer.pants || '#3b3b58';
-  c.fillRect(cx-7,y+2,5,12); c.fillRect(cx+2,y+2,5,12);
+  c.fillRect(cx-7*s,y+2*s,5*s,12*s); c.fillRect(cx+2*s,y+2*s,5*s,12*s);
   c.fillStyle='#33312e';
-  c.fillRect(cx-7,y+11,5,4); c.fillRect(cx+2,y+11,5,4);
+  c.fillRect(cx-7*s,y+11*s,5*s,4*s); c.fillRect(cx+2*s,y+11*s,5*s,4*s);
   c.fillStyle=farmer.shirt;
-  roundRect(c,cx-10,y-8,20,18,6); c.fill();
+  roundRect(c,cx-10*s,y-8*s,20*s,18*s,6*s); c.fill();
   c.fillStyle=farmer.skin;
-  c.beginPath(); c.arc(cx,y-16,10,0,Math.PI*2); c.fill();
+  c.beginPath(); c.arc(cx,y-16*s,10*s,0,Math.PI*2); c.fill();
   c.fillStyle=farmer.hair;
-  c.beginPath(); c.arc(cx,y-20,10,Math.PI,0); c.fill();
-  c.fillRect(cx-10,y-20,20,4);
+  c.beginPath(); c.arc(cx,y-20*s,10*s,Math.PI,0); c.fill();
+  c.fillRect(cx-10*s,y-20*s,20*s,4*s);
   c.fillStyle='#2d2d2d';
   let eoff=0;
-  if(facing==='left') eoff=-3; else if(facing==='right') eoff=3;
+  if(facing==='left') eoff=-3*s; else if(facing==='right') eoff=3*s;
   if(facing!=='up'){
-    c.beginPath(); c.arc(cx-3+eoff,y-16,1.4,0,Math.PI*2); c.fill();
-    c.beginPath(); c.arc(cx+3+eoff,y-16,1.4,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc(cx-3*s+eoff,y-16*s,1.4*s,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc(cx+3*s+eoff,y-16*s,1.4*s,0,Math.PI*2); c.fill();
   }
   const hEmoji = hatEmoji(farmer.hat);
-  if(hEmoji){ c.font='16px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(hEmoji, cx, y-27); }
-  c.font='10px sans-serif'; c.textAlign='center'; c.fillStyle='#2d3436';
-  c.fillText(farmer.name, cx, y-36);
+  if(hEmoji){ c.font=(16*s)+'px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(hEmoji, cx, y-27*s); }
+  c.font=(10*s)+'px sans-serif'; c.textAlign='center'; c.fillStyle='#2d3436';
+  c.fillText(farmer.name, cx, y-36*s);
 }
 
 function drawDecorations(){
@@ -674,9 +719,6 @@ function drawDecorations(){
   });
 }
 
-/* Updates the smoothed pixel position of every OTHER player's farmer,
-   easing toward their latest server-reported tile each frame so their
-   movement reads as walking rather than teleporting between polls. */
 function updateRemoteVisuals(){
   state.farmers.forEach(f=>{
     if(f.id===myPlayerId) return;
@@ -695,11 +737,11 @@ function drawAllFarmers(){
   state.farmers.forEach(f=>{
     if(f.id===myPlayerId) return;
     const rv = remoteVisual[f.id] || {x:f.c*TILE, y:f.r*TILE};
-    drawFarmer(ctx, rv.x+TILE/2, rv.y+TILE/2, f, 'down', bobPhase);
+    drawFarmer(ctx, rv.x+TILE/2, rv.y+TILE/2, f, 'down', bobPhase, CHAR_SCALE);
   });
   const me = myFarmer();
   if(me){
-    drawFarmer(ctx, player.pixelX+TILE/2, player.pixelY+TILE/2, me, player.facing, bobPhase);
+    drawFarmer(ctx, player.pixelX+TILE/2, player.pixelY+TILE/2, me, player.facing, bobPhase, CHAR_SCALE);
   }
 }
 
@@ -827,7 +869,7 @@ function getContext(){
   }
   return {kind:null};
 }
-function getCell(r,c){ return state.crops[cellKey(r,c)] || {stage:0,type:null,water:0,plantedBy:null}; }
+function getCell(r,c){ return state.crops[cellKey(r,c)] || {stage:0,type:null,plantedAt:null,waterCount:0,plantedBy:null}; }
 
 function interact(){
   if(anyModalOpen() || !myFarmer()) return;
@@ -887,10 +929,8 @@ async function tillTile(r,c){
 function plantOnTile(r,c){ openPlantModal(r,c); }
 async function waterTile(r,c){
   const res = await apiCall('/api/water', {playerId:myPlayerId, r, c});
-  if(res.ok){
-    const cell = getCell(r,c);
-    toast(cell.stage===3 ? '🎉 Ready to harvest!' : '💧 Watered the crop.');
-  } else if(res.error){ toast('⚠️ '+res.error); }
+  if(res.ok){ toast(`💧 Watered! Grows a little faster now (${MAX_WATER_BOOSTS - (getCell(r,c).waterCount||0)} boosts left).`); }
+  else if(res.error){ toast('⚠️ '+res.error); }
   renderHUD();
 }
 async function harvestTile(r,c){
@@ -905,8 +945,8 @@ function handleFarmland(r,c){
   const cell = getCell(r,c);
   if(cell.stage===0) tillTile(r,c);
   else if(cell.stage===1) plantOnTile(r,c);
-  else if(cell.stage===2) waterTile(r,c);
-  else if(cell.stage===3) harvestTile(r,c);
+  else if(cell.stage===2 && !isReady(cell)) waterTile(r,c);
+  else if(cell.stage===2 && isReady(cell)) harvestTile(r,c);
 }
 
 async function feedAnimal(animal){
@@ -1034,6 +1074,11 @@ function renderOnlineList(){
     wrap.appendChild(chip);
   });
 }
+function countReadyPlots(){
+  let n=0;
+  Object.values(state.crops||{}).forEach(cell=>{ if(cell.stage===2 && isReady(cell)) n++; });
+  return n;
+}
 function renderHUD(){
   renderLevelBar();
   renderSeedStrip();
@@ -1047,13 +1092,19 @@ function renderHUD(){
 }
 const ACTION_BTN_IDS = { till:'actTill', plant:'actPlant', water:'actWater', harvest:'actHarvest', feed:'actFeed', kudos:'actKudos' };
 function refreshActionPanel(){
+  const readyCount = countReadyPlots();
+  const badge = document.getElementById('harvestBadge');
+  badge.textContent = readyCount;
+  badge.classList.toggle('show', readyCount>0);
   if(!myFarmer()) return;
   const ctx2 = getContext();
+  const cellReady = ctx2.kind==='farmland' && ctx2.cell.stage===2 && isReady(ctx2.cell);
+  const cellGrowing = ctx2.kind==='farmland' && ctx2.cell.stage===2 && !isReady(ctx2.cell);
   const enabledMap = {
     till: ctx2.kind==='farmland' && ctx2.cell.stage===0,
     plant: ctx2.kind==='farmland' && ctx2.cell.stage===1,
-    water: ctx2.kind==='farmland' && ctx2.cell.stage===2,
-    harvest: ctx2.kind==='farmland' && ctx2.cell.stage===3,
+    water: cellGrowing && (ctx2.cell.waterCount||0) < MAX_WATER_BOOSTS,
+    harvest: cellReady,
     feed: ctx2.kind==='animal',
     kudos: ctx2.kind==='kudos'
   };
@@ -1062,11 +1113,6 @@ function refreshActionPanel(){
     if(!btn) return;
     btn.classList.toggle('enabled', !!enabledMap[key]);
   });
-  // The kudos action button always stays reachable-looking (highlighted) since
-  // it can be triggered from the CTA button too, but only truly "enabled" (walk
-  // required) when standing on the board — the highlight nudges people to go there.
-  const kudosBtn = document.getElementById('actKudos');
-  if(kudosBtn && !enabledMap.kudos) kudosBtn.classList.remove('enabled');
 }
 
 /* ============ Plant Modal ============ */
@@ -1076,13 +1122,14 @@ function openPlantModal(r,c){
   const wrap = document.getElementById('cropChoices');
   wrap.innerHTML='';
   let selected = null;
-  CROPS.forEach(cr=>{
+  const sorted = [...CROPS].sort((a,b)=> CROP_GROWTH_MS[a.id]-CROP_GROWTH_MS[b.id]);
+  sorted.forEach(cr=>{
     const seedCount = (state.seeds && state.seeds[cr.id]) || 0;
     const hasSeed = seedCount > 0;
     if(hasSeed && selected===null) selected = cr.id;
     const div = document.createElement('div');
     div.className='crop-choice' + (hasSeed ? '' : ' disabled');
-    div.innerHTML = `<span class="emoji">${cr.emoji}</span>${cr.name}<span class="seedcount">${seedCount} seed${seedCount===1?'':'s'}</span>`;
+    div.innerHTML = `<span class="emoji">${cr.emoji}</span>${cr.name}<span class="growtime">⏱ ${formatMMSS(CROP_GROWTH_MS[cr.id])}</span><span class="seedcount">${seedCount} seed${seedCount===1?'':'s'}</span>`;
     if(hasSeed){
       div.onclick = ()=>{
         wrap.querySelectorAll('.crop-choice').forEach(d=>d.classList.remove('selected'));
@@ -1097,10 +1144,9 @@ function openPlantModal(r,c){
   }
   const note = document.getElementById('plantSeedNote');
   note.textContent = selected
-    ? "Only crops with seeds in the team's Seed Bank can be planted."
+    ? "Only crops with seeds in the team's Seed Bank can be planted. Faster-growing crops are listed first."
     : "The team has no seeds at all right now! Send a kudos first to earn one. 💌";
   document.getElementById('plantOverlay')._getSelected = ()=>selected;
-  document.getElementById('plantConfirm').disabled = !selected;
   document.getElementById('plantOverlay').style.display='flex';
 }
 document.getElementById('plantCancel').onclick = ()=> document.getElementById('plantOverlay').style.display='none';
@@ -1111,7 +1157,8 @@ document.getElementById('plantConfirm').onclick = async ()=>{
   const {r,c} = plantTarget;
   const res = await apiCall('/api/plant', {playerId:myPlayerId, r, c, cropId:chosen});
   overlay.style.display='none';
-  if(res.ok){ toast(`🌱 Planted ${cropInfo(chosen).name}!`); } else if(res.error){ toast('⚠️ '+res.error); }
+  if(res.ok){ toast(`🌱 Planted ${cropInfo(chosen).name}! Ready in ~${formatMMSS(CROP_GROWTH_MS[chosen])}.`); }
+  else if(res.error){ toast('⚠️ '+res.error); }
   renderHUD();
 };
 
@@ -1168,14 +1215,30 @@ document.getElementById('kudosConfirm').onclick = async ()=>{
     const seedInfo = cropInfo(res.seedAwarded);
     confettiBurst();
     toast(`💌 Posted a kudos for ${toName}! The team earned ${seedInfo?seedInfo.emoji:'🌱'} a ${seedInfo?seedInfo.name:'seed'}!`);
+    lastKudosTs = Date.now();
   } else if(res.error){ toast('⚠️ '+res.error); }
   renderHUD();
 };
 document.getElementById('btnSendKudosCta').onclick = ()=> openKudosModal();
 
+/* ============ Gentle kudos reminder ============ */
+let lastKudosTs = Date.now();
+function initLastKudosTs(){
+  if(state.kudosLog && state.kudosLog.length>0){
+    lastKudosTs = state.kudosLog[state.kudosLog.length-1].whenTs || Date.now();
+  }
+}
+setInterval(()=>{
+  if(anyModalOpen()) return;
+  if(Date.now() - lastKudosTs >= KUDOS_REMINDER_MS){
+    toast("💌 It's been a while since the last kudos — anyone you'd like to recognize?");
+    lastKudosTs = Date.now(); // avoid repeated nagging; resets the 5-min timer
+  }
+}, 60*1000);
+
 /* ============ Character Creator (join + edit) ============ */
 let creatorSelection = { skin:SKIN_COLORS[0], hair:HAIR_COLORS[0], shirt:SHIRT_COLORS[0], pants:PANTS_COLORS[0], hat:'none' };
-let creatorMode = 'join'; // 'join' | 'edit'
+let creatorMode = 'join';
 function buildSwatches(containerId, colors, key, selectedValue){
   const wrap = document.getElementById(containerId);
   wrap.innerHTML='';
@@ -1209,7 +1272,7 @@ function drawCreatorPreview(){
   const cx2 = c.getContext('2d');
   cx2.clearRect(0,0,c.width,c.height);
   const fake = { name:'', skin:creatorSelection.skin, hair:creatorSelection.hair, shirt:creatorSelection.shirt, pants:creatorSelection.pants, hat:creatorSelection.hat };
-  drawFarmer(cx2, c.width/2, c.height/2+10, fake, 'down', 0);
+  drawFarmer(cx2, c.width/2, c.height/2+10, fake, 'down', 0, 1);
 }
 function openCreator(isFirstTime){
   creatorMode = isFirstTime ? 'join' : 'edit';
@@ -1288,7 +1351,7 @@ function renderRoster(){
     item.appendChild(nameSpan);
     wrap.appendChild(item);
     const mctx = mini.getContext('2d');
-    drawFarmer(mctx, 20, 32, f, 'down', 0);
+    drawFarmer(mctx, 20, 32, f, 'down', 0, 1);
   });
 }
 
@@ -1389,7 +1452,7 @@ document.getElementById('btnExport').onclick = ()=>{
 document.getElementById('btnReset').onclick = async ()=>{
   if(!confirm('Start a brand new season for the whole team? This clears crops, seeds, animal happiness, inventory, decorations, and kudos (everyone stays on the farm).')) return;
   const res = await apiCall('/api/reset-season', {});
-  if(res.ok) toast('🚜 New season started for everyone!');
+  if(res.ok){ toast('🚜 New season started for everyone!'); lastKudosTs = Date.now(); }
   renderHUD();
 };
 
@@ -1412,8 +1475,8 @@ window.addEventListener('keydown', e=>{
 /* ============ Action Toolbar Buttons ============ */
 document.getElementById('actTill').onclick = ()=>{ const c=getContext(); if(c.kind==='farmland'&&c.cell.stage===0) tillTile(c.r,c.c); };
 document.getElementById('actPlant').onclick = ()=>{ const c=getContext(); if(c.kind==='farmland'&&c.cell.stage===1) plantOnTile(c.r,c.c); };
-document.getElementById('actWater').onclick = ()=>{ const c=getContext(); if(c.kind==='farmland'&&c.cell.stage===2) waterTile(c.r,c.c); };
-document.getElementById('actHarvest').onclick = ()=>{ const c=getContext(); if(c.kind==='farmland'&&c.cell.stage===3) harvestTile(c.r,c.c); };
+document.getElementById('actWater').onclick = ()=>{ const c=getContext(); if(c.kind==='farmland'&&c.cell.stage===2&&!isReady(c.cell)) waterTile(c.r,c.c); };
+document.getElementById('actHarvest').onclick = ()=>{ const c=getContext(); if(c.kind==='farmland'&&c.cell.stage===2&&isReady(c.cell)) harvestTile(c.r,c.c); };
 document.getElementById('actFeed').onclick = ()=>{ const c=getContext(); if(c.kind==='animal') feedAnimal(c.animal); };
 document.getElementById('actKudos').onclick = ()=>{ const c=getContext(); if(c.kind==='kudos') openKudosModal(); };
 
@@ -1451,6 +1514,7 @@ async function init(){
   grid = buildGrid();
   myPlayerId = localStorage.getItem(PLAYER_ID_KEY);
   await pollState();
+  initLastKudosTs();
   if(myPlayerId && state.farmers.some(f=>f.id===myPlayerId)){
     setPlayerToFarmerPosition(state.farmers.find(f=>f.id===myPlayerId));
     renderHUD();

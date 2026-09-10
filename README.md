@@ -1,30 +1,64 @@
-# 🌾 Team Farm Explorer — Real-Time Multiplayer (Kudos Economy Edition)
+# 🌾 Team Farm Explorer — Real-Time Multiplayer (Kudos Economy + Real Growth Timing)
 
-A live, shared farm for team bonding — now with a game economy that ties
-**every crop the team grows directly back to recognizing each other**.
+A live, shared farm for team bonding — with a game economy that ties every
+crop the team grows back to recognizing each other, and growth times that
+actually take a little real time (so the game doesn't blow through an entire
+season in two minutes of clicking).
 
 ---
 
-## 🌱 How the new economy works
+## 🌱 The kudos economy
 
 1. **Seeds only come from sending kudos.** Recognize a teammate on the Kudos
-   Board and the *team* earns one random seed (one of 6 crop types) into a
-   shared Seed Bank. No kudos = no seeds = nothing to grow.
-2. **Planting spends a seed.** When you till a plot and go to plant, you can
-   only choose crop types the team actually has seeds banked for — the Plant
-   menu greys out anything you don't have.
-3. **Harvesting fills the shared Harvest Basket** with the grown crop.
-4. **Animals are picky eaters.** Chickens ONLY eat corn 🌽, cows ONLY eat
-   carrots 🥕, sheep ONLY eat strawberries 🍓 — no substitutes. The team has
-   to deliberately grow (and therefore deliberately earn seeds for) the right
-   crop to raise each animal.
-5. **Leaderboards keep everyone accountable** — "Top Kudos Givers" sits right
-   alongside "Master Growers" and "Best Caretakers," so the team can see at a
-   glance who's remembering to recognize others, not just who's farming.
+   Board and the *team* earns one random seed into a shared Seed Bank.
+2. **Planting spends a seed** — you can only plant crop types the team has
+   seeds banked for.
+3. **Harvesting fills a shared Harvest Basket.**
+4. **Animals are picky eaters** — chickens ONLY eat corn 🌽, cows ONLY eat
+   carrots 🥕, sheep ONLY eat strawberries 🍓. No substitutes.
+5. **Leaderboards** track Top Kudos Givers alongside Master Growers and Best
+   Caretakers, so the team stays accountable for recognizing each other, not
+   just farming.
 
-This turns kudos from a "nice to have" side feature into the literal engine
-that makes the whole farm run — the more the team recognizes each other, the
-more it can grow together.
+## ⏱️ Growth timing (new)
+
+Crops now grow over **real elapsed time** instead of finishing the instant
+you spam-click "water." Each crop's grow time is scaled proportionally from
+real-world "days to maturity" horticultural averages (~3 in-game seconds per
+real-world day):
+
+| Crop | Approx. real days to maturity | In-game grow time |
+|---|---|---|
+| 🥕 Carrot | ~70 days | **3:30** |
+| 🌽 Corn | ~75 days | **3:45** |
+| 🍅 Tomato | ~75 days | **3:45** |
+| 🌻 Sunflower | ~85 days | **4:15** |
+| 🍓 Strawberry | ~100 days | **5:00** |
+| 🎃 Pumpkin | ~110 days | **5:30** |
+
+**Watering is now optional**, not required — it's a small booster. Each
+watering (up to 3 per plot) shaves 10% off the remaining grow time (up to
+30% faster total), rewarding attentiveness without letting anyone rush a
+crop to ripeness by clicking. A live countdown and a pulsing golden glow
+appear on each plot so the team can see at a glance what's growing and
+what's ready.
+
+## 🖥️ Other improvements in this update
+
+- **Bigger farm view** — the game canvas is now ~24% larger (936×624 vs. the
+  original 756×504), giving more visual breathing room without changing the
+  map layout.
+- **Sidebar layout** — the Kudos Wall and Leaderboards now live in a sticky
+  sidebar next to the farm (instead of below it), so they stay visible while
+  playing. On narrower screens, it gracefully stacks below the farm instead.
+- **Harvest badge** — the Harvest action button now shows a live count of
+  how many plots on the whole farm are ready to pick.
+- **Grow-time preview** — the Plant menu shows each crop's grow time and
+  sorts fastest-to-slowest, so the team can pick strategically (e.g., plant
+  something fast if time's short before the social wraps up).
+- **Gentle kudos reminder** — if 5 minutes pass with no kudos sent, a soft
+  toast nudges the team to recognize someone (never more than once every 5
+  minutes, never intrusive).
 
 ---
 
@@ -39,73 +73,59 @@ team-farm-explorer/
 └── README.md          # You're reading it
 ```
 
-This is a small Node.js project with **zero external dependencies** (it only
-uses Node's built-in `http` module), so it's easy to deploy anywhere that
-runs Node.
+Zero external dependencies — only Node's built-in `http` module.
 
 ## How it works (in plain terms)
 
-- The **server** keeps one shared copy of the farm (who's playing, crops,
-  animals, the seed bank, the harvest basket, kudos, decorations) in memory.
-- Every player's browser polls the server about once a second to see what
-  everyone else has done, and sends a request every time *they* do something.
-- Because state lives in the server's memory, **it resets if the server
-  restarts** (e.g. a free host spinning down from inactivity, or a redeploy).
-  That's fine for a single team-social "season" — use the in-game
-  **New Season** button anytime you want a clean slate.
+- The **server** keeps one shared copy of the farm in memory.
+- Every player's browser polls the server about once a second and sends a
+  request every time they act.
+- State resets if the server restarts (e.g. free-host inactivity spin-down).
+  Use the in-game **New Season** button anytime you want a clean slate.
 
 ---
 
-## 🚀 Deploy it in ~5 minutes (Render, free, no credit card)
+## 🚀 Updating your existing deployment (Render)
 
-1. **Get the code onto GitHub:**
-   - Create a new repository on [github.com](https://github.com).
-   - If the repo is empty, use the **"uploading an existing file"** link on
-     the Quick Setup page (or create one small file first, like a README, so
-     the normal **Add file → Upload files** button appears).
-   - Upload `server.js`, `package.json`, `README.md`, and the whole `public`
-     folder, then commit.
+1. Unzip this package.
+2. On your existing GitHub repo, click **Add file → Upload files** (or drag
+   the files onto the file list) and drop in `server.js`, `package.json`,
+   `README.md`, and the `public` folder. Same-named files overwrite
+   automatically.
+3. Commit — Render auto-redeploys within a minute or two (this resets the
+   current season's crops/seeds/kudos; your team roster stays).
 
-2. **Deploy on [render.com](https://render.com):**
-   - Sign up (GitHub login works great — no card needed).
-   - Click **New +** → **Web Service**, connect your GitHub account, and
-     select your repo.
-   - Confirm these settings:
-     - **Build Command:** `npm install`
-     - **Start Command:** `npm start`
-     - **Instance Type:** Free
-   - Click **Create Web Service** and wait ~1–2 minutes.
+## 🚀 First-time deploy (Render, free, no credit card)
 
-3. **Share the live URL** Render gives you (e.g.
-   `https://team-farm-explorer.onrender.com`) with your team.
+1. Create a new repo on [github.com](https://github.com). If it's empty,
+   use the **"uploading an existing file"** link on the Quick Setup page.
+2. Sign up at [render.com](https://render.com) (GitHub login works great).
+3. **New +** → **Web Service** → connect your repo. Settings:
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+   - **Instance Type:** Free
+4. **Create Web Service**, wait ~1–2 minutes, then share the live URL.
 
 ### Good to know
-- Free Render services sleep after 15 minutes of no visitors and take
-  ~30–60 seconds to wake up on the next request — open the link yourself a
-  minute before your team social to warm it up.
-- To update the game later, re-upload changed files to the same GitHub repo
-  — Render auto-redeploys on every push (this resets the current season).
+- Free Render services sleep after 15 minutes idle and take ~30–60 seconds
+  to wake up — open the link yourself a minute before your social starts.
 
 ---
 
-## Alternative: run it yourself on any computer/server
+## Alternative: run it yourself
 
 ```bash
-npm install    # no-op here since there are no dependencies, but harmless
+npm install    # no-op (no dependencies), but harmless
 npm start
 ```
 
-Listens on port `3000` by default — open `http://<that-computer's-address>:3000`
-from any device on the same network. Set the `PORT` environment variable to
-use a different port.
+Listens on port `3000` by default (`PORT` env var to change it).
 
 ---
 
 ## Limitations to know about
 
-- **No persistence** — state lives in memory only. A server restart clears
-  the farm (roster included).
-- **Single shared farm per deployment** — everyone who opens the URL lands
-  on the same farm. Deploy separate instances for separate teams.
+- **No persistence** — state lives in memory only; a restart clears the farm.
+- **Single shared farm per deployment.**
 - **Casual-scale** — built for a team of roughly 2–30 people on a shared
   social, not a large-scale production service.

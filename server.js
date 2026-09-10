@@ -11,30 +11,27 @@
    GAME ECONOMY (kudos-driven):
      1. Sending a Kudos to a teammate awards the TEAM a random
         seed (one of 6 crop types) into a shared Seed Bank.
-        This is the only way to get seeds — it directly ties
-        recognizing teammates to being able to grow anything.
      2. Planting a tilled plot SPENDS one seed of the chosen
-        type from the shared Seed Bank. If the team has none of
-        that type, planting is rejected.
-     3. Harvested crops go into a shared Harvest Basket
-        (the `inventory` object).
-     4. Animals are picky: each only accepts its OWN liked crop
-        (chicken/corn, cow/carrot, sheep/strawberry) — no
-        fallback to other crops. This makes raising animals
-        require deliberately growing the right crop for them.
-     5. Leaderboards (kudos givers / growers / caretakers) keep
-        the team accountable for remembering to recognize each
-        other, not just play the farming minigame.
+        type from the shared Seed Bank.
+     3. Harvested crops go into a shared Harvest Basket.
+     4. Animals are picky: each only accepts its OWN liked crop.
+     5. Leaderboards keep the team accountable for kudos.
+
    ------------------------------------------------------------
-   Design notes:
-   - State lives only in memory: it resets if the server restarts
-     or (on free hosting tiers) spins down from inactivity. This
-     is fine for a single team-social "season" but is NOT durable
-     long-term storage.
-   - Single shared farm per deployment (no multi-room support).
-   - Server re-validates every action so concurrent actions from
-     different players can't corrupt state (e.g. double-harvest,
-     double-spend a seed).
+   GROWTH TIMING (real elapsed time, not click-spam):
+     Each crop has its own grow duration, scaled proportionally
+     from real-world "days to maturity" horticultural averages
+     (approx. 3 in-game seconds per real-world day):
+       Carrot     ~70 real days  -> 3:30 in-game
+       Corn       ~75 real days  -> 3:45 in-game
+       Tomato     ~75 real days  -> 3:45 in-game
+       Sunflower  ~85 real days  -> 4:15 in-game
+       Strawberry ~100 real days -> 5:00 in-game
+       Pumpkin    ~110 real days -> 5:30 in-game
+     Watering is now an OPTIONAL booster (not a hard requirement):
+     each watering (up to a cap) shaves a percentage off the
+     remaining grow time, rewarding attentiveness, but real time
+     always has to pass — you can't spam-click a crop to ripeness.
    ============================================================ */
 
 const http = require('http');
@@ -45,11 +42,25 @@ const PORT = process.env.PORT || 3000;
 
 /* ============ Game constants (mirrors client) ============ */
 const ROWS = 12, COLS = 18;
-const WATER_NEEDED = 4;
 const HAPPY_MAX = 5;
-const FEED_GAIN = 2; // animals now only ever eat their liked crop, so this is fixed
 
 const CROP_IDS = ['sunflower','carrot','strawberry','corn','pumpkin','tomato'];
+
+/* Grow durations in milliseconds. NOTE: this is a `let`-free plain
+   object mutated only by the local test harness (never in
+   production) to speed up time-gating tests without waiting
+   real minutes — see the exports at the bottom of this file. */
+const CROP_GROWTH_MS = {
+  carrot:     3.5 * 60 * 1000,
+  corn:       3.75 * 60 * 1000,
+  tomato:     3.75 * 60 * 1000,
+  sunflower:  4.25 * 60 * 1000,
+  strawberry: 5   * 60 * 1000,
+  pumpkin:    5.5 * 60 * 1000
+};
+
+const REDUCTION_PER_WATER = 0.10; // each watering shaves 10% off the base duration
+const MAX_WATER_BOOSTS = 3;       // capped at 3 waterings (max 30% faster)
 
 const ANIMALS_DEF = [
   {id:'chicken1', type:'chicken', r:5, c:11, likes:'corn',       product:'egg',  productName:'eggs'},
@@ -104,10 +115,10 @@ function defaultState(){
   return {
     teamName:'',
     farmers:[],               // {id,name,skin,hair,shirt,pants,hat,r,c}
-    crops:{},                 // "r,c" -> {stage,type,water,plantedBy}
+    crops:{},                 // "r,c" -> {stage,type,plantedAt,waterCount,plantedBy}
     animals: ANIMALS_DEF.map(a=>({...a, happiness:0})),
-    seeds: emptySeedBank(),           // shared seed bank, earned only via kudos
-    inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0, egg:0, milk:0, wool:0}, // harvested crops + animal products
+    seeds: emptySeedBank(),
+    inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0, egg:0, milk:0, wool:0},
     kudosLog:[],
     stats:{givers:{}, contributors:{}, caretakers:{}},
     totalHarvests:0,
@@ -129,19 +140,27 @@ function cellKey(r,c){ return r+','+c; }
 function getOrCreateCell(r,c){
   const key = cellKey(r,c);
   let cell = state.crops[key];
-  if(!cell){ cell = {stage:0, type:null, water:0, plantedBy:null}; state.crops[key]=cell; }
+  if(!cell){ cell = {stage:0, type:null, plantedAt:null, waterCount:0, plantedBy:null}; state.crops[key]=cell; }
   return cell;
 }
 function findFarmer(id){ return state.farmers.find(f=>f.id===id); }
 function animalById(id){ return state.animals.find(a=>a.id===id); }
 function isValidCoord(r,c){ return Number.isInteger(r) && Number.isInteger(c) && r>=0 && r<ROWS && c>=0 && c<COLS; }
 function randomCropId(){ return CROP_IDS[Math.floor(Math.random()*CROP_IDS.length)]; }
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+/* Growth-timing helpers. Effective duration shrinks by
+   REDUCTION_PER_WATER for each watering, capped at MAX_WATER_BOOSTS. */
+function effectiveDurationMs(cell){
+  const base = CROP_GROWTH_MS[cell.type] || 0;
+  const boosts = Math.min(cell.waterCount||0, MAX_WATER_BOOSTS);
+  return base * (1 - REDUCTION_PER_WATER*boosts);
+}
+function readyAtMs(cell){ return (cell.plantedAt||0) + effectiveDurationMs(cell); }
+function isReady(cell){ return !!cell.type && Date.now() >= readyAtMs(cell); }
+function remainingMs(cell){ return Math.max(0, readyAtMs(cell) - Date.now()); }
 
 /* ============ API handlers ============ */
-/* Each handler receives the parsed JSON body and returns
-   { ok: bool, error?: string, ...extra } — the caller always
-   responds with the full current state alongside this result. */
-
 function apiJoin(body){
   const name = (body.name || '').toString().trim().slice(0,40);
   if(!name) return {ok:false, error:'Name is required.'};
@@ -208,9 +227,8 @@ function apiTill(body){
   return {ok:true};
 }
 
-/* Planting now SPENDS a seed of the chosen type from the shared
-   seed bank — seeds only come from sending kudos, so this is the
-   step that ties recognition directly to being able to grow food. */
+/* Planting SPENDS a seed of the chosen type from the shared seed
+   bank, and starts the real-time growth clock for this plot. */
 function apiPlant(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -219,13 +237,16 @@ function apiPlant(body){
   if(!CROP_IDS.includes(cropId)) return {ok:false, error:'Bad crop.'};
   const cell = getOrCreateCell(r,c);
   if(cell.stage!==1) return {ok:false, error:'Not ready to plant.'};
-  if((state.seeds[cropId]||0) <= 0) return {ok:false, error:'No seeds of that type in the team\'s seed bank — send a kudos to earn one!'};
+  if((state.seeds[cropId]||0) <= 0) return {ok:false, error:"No seeds of that type in the team's seed bank — send a kudos to earn one!"};
   state.seeds[cropId]--;
-  cell.type = cropId; cell.stage = 2; cell.water = 0; cell.plantedBy = f.name;
+  cell.type = cropId; cell.stage = 2; cell.waterCount = 0; cell.plantedAt = Date.now(); cell.plantedBy = f.name;
   bump();
   return {ok:true};
 }
 
+/* Watering is an optional booster: reduces effective grow time by
+   REDUCTION_PER_WATER, up to MAX_WATER_BOOSTS times. It can no
+   longer instantly finish a crop — real time always has to pass. */
 function apiWater(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -233,10 +254,11 @@ function apiWater(body){
   if(!isValidCoord(r,c)) return {ok:false, error:'Bad coordinates.'};
   const cell = getOrCreateCell(r,c);
   if(cell.stage!==2) return {ok:false, error:'Nothing to water.'};
-  cell.water++;
-  if(cell.water>=WATER_NEEDED) cell.stage = 3;
+  if(isReady(cell)) return {ok:false, error:'Already ready to harvest!'};
+  if((cell.waterCount||0) >= MAX_WATER_BOOSTS) return {ok:false, error:'Already fully boosted — it just needs time now!'};
+  cell.waterCount = (cell.waterCount||0) + 1;
   bump();
-  return {ok:true};
+  return {ok:true, remainingMs: remainingMs(cell)};
 }
 
 function apiHarvest(body){
@@ -245,18 +267,21 @@ function apiHarvest(body){
   const {r,c} = body;
   if(!isValidCoord(r,c)) return {ok:false, error:'Bad coordinates.'};
   const cell = getOrCreateCell(r,c);
-  if(cell.stage!==3) return {ok:false, error:'Not ready to harvest.'};
+  if(cell.stage!==2 || !cell.type) return {ok:false, error:'Nothing to harvest.'};
+  if(!isReady(cell)){
+    const secs = Math.ceil(remainingMs(cell)/1000);
+    const mm = Math.floor(secs/60), ss = secs%60;
+    return {ok:false, error:`Still growing — ${mm}:${String(ss).padStart(2,'0')} left!`};
+  }
   state.inventory[cell.type] = (state.inventory[cell.type]||0) + 1;
   state.totalHarvests++;
   state.stats.contributors[f.name] = (state.stats.contributors[f.name]||0) + 1;
-  cell.stage = 1; cell.type = null; cell.water = 0;
+  cell.stage = 1; cell.type = null; cell.plantedAt = null; cell.waterCount = 0;
   bump();
   return {ok:true};
 }
 
-/* Animals are picky eaters: they ONLY accept their own liked crop
-   (no fallback to whatever's in the basket). This makes raising
-   each animal require deliberately growing its specific crop. */
+/* Animals are picky eaters: they ONLY accept their own liked crop. */
 function apiFeed(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -264,10 +289,11 @@ function apiFeed(body){
   if(!animal) return {ok:false, error:'Unknown animal.'};
   const likedCrop = animal.likes;
   if((state.inventory[likedCrop]||0) <= 0){
-    const cropName = likedCrop.charAt(0).toUpperCase()+likedCrop.slice(1);
+    const cropName = capitalize(likedCrop);
     return {ok:false, error:`${capitalize(animal.type)}s only eat ${cropName}! Grow and harvest some first.`};
   }
   state.inventory[likedCrop]--;
+  const FEED_GAIN = 2;
   animal.happiness = Math.min(HAPPY_MAX, animal.happiness + FEED_GAIN);
   state.stats.caretakers[f.name] = (state.stats.caretakers[f.name]||0) + 1;
   let produced = null;
@@ -280,11 +306,8 @@ function apiFeed(body){
   bump();
   return {ok:true, fed:likedCrop, gain:FEED_GAIN, produced};
 }
-function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
-/* Sending a kudos is the ONLY source of seeds — awards one random
-   crop type to the shared seed bank. Self-kudos is blocked so
-   people can't farm seeds without actually recognizing a teammate. */
+/* Sending a kudos is the ONLY source of seeds. Self-kudos blocked. */
 function apiKudos(body){
   const fromName = (body.fromName||'').toString().trim().slice(0,40);
   const toName = (body.toName||'').toString().trim().slice(0,40);
@@ -292,7 +315,7 @@ function apiKudos(body){
   const message = (body.message||'').toString().trim().slice(0,500);
   if(!fromName || !toName) return {ok:false, error:'From/To required.'};
   if(fromName.toLowerCase() === toName.toLowerCase()) return {ok:false, error:"You can't send yourself a kudos — recognize a teammate instead!"};
-  state.kudosLog.push({fromName, toName, cropId, message, when:new Date().toLocaleString()});
+  state.kudosLog.push({fromName, toName, cropId, message, when:new Date().toLocaleString(), whenTs: Date.now()});
   if(state.kudosLog.length > MAX_KUDOS_LOG) state.kudosLog.shift();
   state.stats.givers[fromName] = (state.stats.givers[fromName]||0) + 1;
   state.totalKudos++;
@@ -412,4 +435,8 @@ server.listen(PORT, ()=>{
   console.log(`Team Farm Explorer multiplayer server running on port ${PORT}`);
 });
 
-module.exports = server; // exported for local testing
+/* Exported for local testing only: CROP_GROWTH_MS is intentionally
+   mutable so a test harness can shrink grow durations (e.g. to a
+   couple of seconds) to verify time-gating logic without waiting
+   real minutes. Never mutated in production. */
+module.exports = { server, CROP_GROWTH_MS, MAX_WATER_BOOSTS, REDUCTION_PER_WATER, CROP_IDS };
