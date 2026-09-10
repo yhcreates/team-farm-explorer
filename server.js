@@ -16,13 +16,14 @@
        coins — every crop has a purpose, including the ones no
        animal eats (sunflower, pumpkin, tomato).
      - Coins are spent on:
-         - Decorations — coins ONLY (no separate "points" gate;
-           any decoration can be bought the moment the team can
-           afford it).
+         - Decorations — coins ONLY, no other requirement.
          - Field Expansions — permanently unlock more of the
-           farm's own farmland grid (NOT separate detached zones
-           elsewhere on the map — the locked tiles are part of
-           the same big field, just visually locked until bought).
+           farm's own contiguous farmland grid.
+         - NEW: Buying more animals — chickens/cows/sheep can be
+           purchased with coins (price rises with how many of
+           that type the team already owns), spawned into a free
+           pen tile automatically. More animals = more capacity
+           to convert crops into sellable animal products.
 
    GROWTH TIMING: real calendar days (max ~7 for the slowest crop).
    Watering is an optional booster (up to 3x, 10% faster each).
@@ -33,10 +34,13 @@
    compressed client-side to a data URL) renders enlarged on a
    farmer's face.
 
-   MAP: a bigger, single contiguous farmland block (84 tiles) —
-   48 open by default, 36 locked behind two Field Expansion tiers.
-   See buildGrid() below; verified for full BFS reachability of
-   every interactive tile before being wired into this server.
+   MAP: one large contiguous farmland field (84 tiles: 48 open +
+   36 behind two purchasable Field Expansion tiers), a picky-eater
+   animal pen, and — new in this update — a direct path connector
+   between the field and the pen (in addition to the original
+   top-corridor route), so players don't have to loop all the way
+   around. Verified for full BFS reachability before being wired
+   into this server.
    ============================================================ */
 
 const http = require('http');
@@ -69,6 +73,17 @@ const SELL_PRICES = {
 };
 const SELLABLE_IDS = Object.keys(SELL_PRICES);
 
+/* ============ Animal types (for purchasing more of them) ============
+   Each type has a base coin cost and an increment added per animal
+   of that type the team already owns, so buying isn't infinitely
+   cheap and the pen doesn't get spammed. */
+const ANIMAL_TYPE_DEFS = {
+  chicken: {emoji:'🐔', likes:'corn',       product:'egg',  baseCost:50,  costIncrement:25},
+  cow:     {emoji:'🐄', likes:'carrot',     product:'milk', baseCost:100, costIncrement:50},
+  sheep:   {emoji:'🐑', likes:'strawberry', product:'wool', baseCost:100, costIncrement:50}
+};
+const MAX_ANIMALS_TOTAL = 16; // generous cap so the pen never visually overflows
+
 const ANIMALS_DEF = [
   {id:'chicken1', type:'chicken', r:5, c:18, likes:'corn',       product:'egg',  productName:'eggs'},
   {id:'chicken2', type:'chicken', r:5, c:20, likes:'corn',       product:'egg',  productName:'eggs'},
@@ -91,8 +106,7 @@ const DEFAULT_SENTIMENTS = [
 ];
 const MAX_SENTIMENTS = 40;
 
-/* Decorations now cost ONLY coins — no separate "points" unlock
-   tier. This removes a confusing double-gate that existed before. */
+/* Decorations cost ONLY coins — no separate "points" gate. */
 const DECORATIONS_DEF = [
   {id:'flowerpatch', cost:15},
   {id:'rock',        cost:15},
@@ -109,16 +123,17 @@ function decorationDef(id){ return DECORATIONS_DEF.find(d=>d.id===id); }
 
 /* Field Expansions: the farmland grid is ONE big contiguous block
    (84 tiles). 48 tiles are open from the start; the remaining 36
-   are split into two purchasable tiers that unlock more of the
-   SAME field (not a separate detached area). */
+   are split into two purchasable tiers. Each zone also carries a
+   single "centerTile" used by the client to draw ONE lock icon per
+   zone instead of one per tile (much less visually crowded). */
 function buildExpansionTiles(cMin, cMax){
   const tiles = [];
   for(let r=4; r<=9; r++) for(let c=cMin; c<=cMax; c++) tiles.push([r,c]);
   return tiles;
 }
 const EXPANSION_ZONES = [
-  { id:'field_expansion_1', name:'Field Expansion I',  cost:200, tiles: buildExpansionTiles(10,12) },
-  { id:'field_expansion_2', name:'Field Expansion II', cost:400, tiles: buildExpansionTiles(13,15) }
+  { id:'field_expansion_1', name:'Field Expansion I',  cost:200, tiles: buildExpansionTiles(10,12), centerTile:[6,11] },
+  { id:'field_expansion_2', name:'Field Expansion II', cost:400, tiles: buildExpansionTiles(13,15), centerTile:[6,14] }
 ];
 function expansionZoneAt(r,c){
   return EXPANSION_ZONES.find(z => z.tiles.some(([zr,zc])=>zr===r&&zc===c));
@@ -127,17 +142,19 @@ function expansionZoneAt(r,c){
 const OBSTACLE_TYPES = new Set(['tree','house','barn','fence','water']);
 const MAX_PHOTO_DATA_URL_LENGTH = 120000;
 
-/* ============ Map (verified for full reachability — see notes) ============
+/* ============ Map (verified for full reachability) ============
    Layout summary:
      - House top-left, Barn top-right (1 row tall by design, so the
-       row below it stays open as a walking corridor to the pen —
-       a taller barn here would seal off the pen with no way around).
-     - Kudos board + Market stall along the top path, between house/barn.
+       row below stays open as a corridor to the pen).
+     - Kudos board + Market stall along the top path.
      - One big farmland field (rows4-9, cols2-15 = 84 tiles): open
-       cols2-9 (48 tiles) + two locked expansion tiers cols10-12 and
-       cols13-15 (18 tiles each).
-     - Animal pen to the right (cols18-20, rows4-11 = 24 tiles),
-       entered via a single top-corridor gap at (3,20).
+       cols2-9 (48 tiles) + two locked expansion tiers cols10-12
+       and cols13-15 (18 tiles each).
+     - Animal pen (cols18-20, rows4-11 = 24 tiles), reachable via
+       the original top-corridor entrance AND — new in this update
+       — a direct path connector at row6 cutting straight through
+       the shared fence line (col16/col17), so players don't have
+       to loop all the way around.
      - Small pond bottom-left for visual flavor.
    ============================================================ */
 function buildGrid(){
@@ -147,7 +164,7 @@ function buildGrid(){
   for(let c=0;c<COLS;c++){ g[0][c]='tree'; g[ROWS-1][c]='tree'; }
   // house
   for(let r=1;r<=2;r++) for(let c=1;c<=3;c++) g[r][c]='house';
-  // barn (1 row tall by design — see note above)
+  // barn (1 row tall by design — keeps row2 open as a walking corridor)
   for(let c=17;c<=19;c++) g[1][c]='barn';
   // top path connecting house -> kudos -> market -> barn corridor
   for(let c=4;c<=9;c++) g[1][c]='path';
@@ -163,13 +180,17 @@ function buildGrid(){
   // fence gaps (entrances)
   g[3][4]='path'; g[10][8]='path';
   // pen fence ring (cols17-20); top fence only spans 17-19, leaving
-  // col20 open at row3 as the single entrance corridor
+  // col20 open at row3 as an entrance corridor from the top
   for(let c=17;c<=19;c++) g[3][c]='fence';
   for(let c=17;c<=20;c++) g[12][c]='fence';
   for(let r=3;r<=12;r++) g[r][17]='fence';
   g[3][20]='path';
   // interior pen rows4-11, cols18-20 -- 24 tiles
   for(let r=4;r<=11;r++) for(let c=18;c<=20;c++) g[r][c]='pen';
+  // NEW: direct path connector between farmland and the pen — a
+  // 1-tile gap straight through both fences at row6, so there's a
+  // second, much shorter route besides looping via the top corridor.
+  g[6][16]='path'; g[6][17]='path';
   // pond
   g[11][2]='water'; g[11][3]='water'; g[12][2]='water'; g[12][3]='water';
   return g;
@@ -177,11 +198,6 @@ function buildGrid(){
 const GRID = buildGrid();
 function tileAt(r,c){ return GRID[r] && GRID[r][c]; }
 
-/* A tile is plantable farmland if it's the base 'farmland' type AND
-   (it's not part of any expansion zone, OR its zone has been
-   unlocked). Locked zone tiles are still typed 'farmland' in the
-   grid (so they render as farmland, just visually locked) but are
-   NOT interactable until purchased. */
 function isFarmlandTile(r,c){
   if(tileAt(r,c) !== 'farmland') return false;
   const zone = expansionZoneAt(r,c);
@@ -315,6 +331,25 @@ function tickAnimalWander(){
   if(moved) bump();
 }
 setInterval(tickAnimalWander, 1000);
+
+/* Finds any free pen tile (not occupied by another animal or a
+   farmer) for a newly-purchased animal to spawn into. Returns null
+   if the pen is completely full. */
+function findFreePenTile(){
+  for(let r=PEN_BOUNDS.rMin;r<=PEN_BOUNDS.rMax;r++){
+    for(let c=PEN_BOUNDS.cMin;c<=PEN_BOUNDS.cMax;c++){
+      if(isTileFreeForAnimal(r,c,null)) return [r,c];
+    }
+  }
+  return null;
+}
+function countAnimalsOfType(type){ return state.animals.filter(a=>a.type===type).length; }
+function costForNextAnimal(type){
+  const def = ANIMAL_TYPE_DEFS[type];
+  if(!def) return null;
+  const owned = countAnimalsOfType(type);
+  return def.baseCost + owned * def.costIncrement;
+}
 
 /* ============ API handlers ============ */
 function validatePhoto(photo){
@@ -523,7 +558,6 @@ function apiKudos(body){
   return {ok:true, seedAwarded};
 }
 
-/* Decorations now check ONLY the coin cost — no points-tier gate. */
 function apiDecorate(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -563,6 +597,33 @@ function apiExpand(body){
   return {ok:true};
 }
 
+/* Buys ONE additional animal of the given type. Cost rises with how
+   many of that type the team already owns (baseCost + owned *
+   increment). The new animal spawns into any free pen tile; if the
+   pen is completely full (or the overall animal cap is hit), the
+   purchase is rejected WITHOUT charging coins. */
+function apiBuyAnimal(body){
+  const f = findFarmer(body.playerId);
+  if(!f) return {ok:false, error:'Unknown player.'};
+  const type = (body.animalType||'').toString();
+  const def = ANIMAL_TYPE_DEFS[type];
+  if(!def) return {ok:false, error:'Unknown animal type.'};
+  if(state.animals.length >= MAX_ANIMALS_TOTAL) return {ok:false, error:`The pen is at its maximum of ${MAX_ANIMALS_TOTAL} animals!`};
+  const cost = costForNextAnimal(type);
+  if(state.coins < cost) return {ok:false, error:`Not enough coins — need ${cost}, have ${state.coins}. Sell some crops at the Market!`};
+  const spot = findFreePenTile();
+  if(!spot) return {ok:false, error:'No free space left in the pen right now — try again once an animal wanders elsewhere!'};
+  state.coins -= cost;
+  const newId = type + '_' + uid();
+  state.animals.push({
+    id:newId, type, r:spot[0], c:spot[1],
+    likes:def.likes, product:def.product,
+    happiness:0, nextMoveAt: Date.now()+randomWanderDelay()
+  });
+  bump();
+  return {ok:true, animalId:newId, spent:cost, nextCost: costForNextAnimal(type)};
+}
+
 function apiResetSeason(){
   const keepFarmers = state.farmers;
   const keepTeamName = state.teamName;
@@ -591,6 +652,7 @@ const ROUTES = {
   '/api/decorate': apiDecorate,
   '/api/remove-decor': apiRemoveDecor,
   '/api/expand': apiExpand,
+  '/api/buy-animal': apiBuyAnimal,
   '/api/reset-season': apiResetSeason
 };
 
@@ -662,5 +724,6 @@ module.exports = {
   server, CROP_GROWTH_MS, MAX_WATER_BOOSTS, REDUCTION_PER_WATER, CROP_IDS,
   STATE_FILE, saveStateToDisk, PEN_BOUNDS, tickAnimalWander,
   MAX_PHOTO_DATA_URL_LENGTH, SELL_PRICES, EXPANSION_ZONES, DECORATIONS_DEF,
+  ANIMAL_TYPE_DEFS, MAX_ANIMALS_TOTAL, costForNextAnimal, countAnimalsOfType,
   ROWS, COLS, buildGrid
 };

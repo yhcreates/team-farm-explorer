@@ -2,58 +2,55 @@
 
 A live, shared farm for team bonding. Recognize a teammate → earn a seed →
 grow it (over real days) → sell it or feed animals → spend coins to
-decorate and expand your farm — all together, in real time.
+decorate, expand your farm, and buy more animals — all together, live.
 
 ---
 
 ## 🆕 What's in this update
 
-1. **Clearer rules at a glance.** A new "Farm Loop" ribbon at the top of the
-   page always shows the whole game loop in one line: 💌 Kudos → 🌱 Seed →
-   🌾 Grow → 🧺 Harvest → 💰 Sell/🍽️ Feed → 🏗️ Build & Expand. The How-to-Play
-   modal leads with the same summary before the detailed steps.
-2. **Photo repositioning.** The character creator's photo uploader is now a
-   real cropper: after uploading, **drag inside the circular preview** to
-   reposition your face, and use the zoom slider to get in closer. The final
-   crop is computed live as you drag.
-3. **Decorations cost coins only.** Removed the old "points tier" gate that
-   used to sit alongside the coin cost — every decoration can now be bought
-   the moment your team can afford it, full stop.
-4. **A much bigger canvas and a much bigger field.** The farm is now
-   1144×728 (up from 936×624), and the farmland grid grew from 24 tiles to
-   **84 tiles** — 48 open from the start, plus 36 more behind two
-   purchasable "Field Expansion" tiers. Crucially, the locked tiles are part
-   of the *same* big field (not a separate zone elsewhere on the map) — they
-   render right there as greyed-out soil with a 🔒 and the unlock cost
-   printed directly on the tile, so the rule is obvious without opening any
-   menu.
+1. **A direct path between the field and the pen.** Previously the only
+   route from the farmland to the animal pen was a long loop around the top
+   corridor. There's now a shortcut: a 1-tile gap cuts straight through the
+   shared fence line partway down the field, roughly halving travel time.
+2. **Much simpler lock indicators.** The two locked field-expansion zones
+   used to show a 🔒 icon and coin-cost label on *every single tile*
+   (18 tiles each) — visually noisy. Now each locked zone is just a clean,
+   flat grey block with **one** 🔒 + cost label in the middle. Same
+   information, far less clutter.
+3. **A "Close" button in My Farmer.** Alongside "Leave Farm" and "Edit My
+   Look," there's now a plain **Close** button for when you just want to
+   back out without changing anything (the small ✕ in the corner still
+   works too).
+4. **Buy Animals.** Build & Expand has a new **"🐣 Buy Animals"** tab —
+   spend coins to add more chickens, cows, or sheep to your pen. Each
+   purchase costs a bit more than the last (per animal type), so it stays
+   balanced instead of letting the pen get spammed. New animals spawn into
+   a free spot in the pen and wander just like the originals.
+
+| Animal | Starting cost | Cost increase per owned |
+|---|---|---|
+| 🐔 Chicken | 50 coins | +25 each |
+| 🐄 Cow | 100 coins | +50 each |
+| 🐑 Sheep | 100 coins | +50 each |
 
 ---
 
-## 🗺️ The new field
+## 🗺️ The field (recap)
 
-| Section | Tiles | Status |
-|---|---|---|
-| Open field | 48 | Available from the start |
-| Field Expansion I | 18 | 🔒 200 coins to unlock |
-| Field Expansion II | 18 | 🔒 400 coins to unlock |
-
-Once unlocked, an expansion's tiles work exactly like the rest of the field
-— till, plant, water, harvest — forever (until a "New Season" reset).
+84 total farmland tiles: 48 open from the start, plus two purchasable
+"Field Expansion" tiers (18 tiles each, 200 and 400 coins) that permanently
+unlock more of the *same* contiguous field.
 
 ## 💰 The Market economy (recap)
 
 Every crop and animal product sells for coins — including sunflowers,
-pumpkins, and tomatoes, which no animal eats. Coins fund **Build & Expand**:
-- **Decorations** — coins only, 15 to 250 depending on the item.
-- **Field Expansions** — permanently grow the farm itself (see table above).
+pumpkins, and tomatoes, which no animal eats. Coins fund Build & Expand:
+decorations (coins only), field expansions, and now buying more animals.
 
 ## 🌱 The kudos economy (recap)
 
 Seeds only come from sending kudos (fully random, decoupled from the
 sentiment you pick — sentiments are tailorable, add your own anytime).
-Animals are picky eaters (chicken/corn, cow/carrot, sheep/strawberry) and
-also wander their pen on their own.
 
 ## ⏱️ Growth timing (recap)
 
@@ -63,9 +60,8 @@ Watering is an optional booster (up to 30% faster).
 ## ⚠️ Persistence still matters
 
 Because growth can take up to a week, the server persists everything to
-`farm-state.json` after every action — but this only survives restarts if
-your hosting keeps that file around. Free hosting tiers with no persistent
-disk will lose progress; see hosting guidance below.
+`farm-state.json` after every action — this only survives restarts if your
+hosting keeps that file around. See hosting guidance below.
 
 ---
 
@@ -73,10 +69,10 @@ disk will lose progress; see hosting guidance below.
 
 ```
 team-farm-explorer/
-├── server.js         # Multiplayer server (state, economy, market, expansions, growth, animal AI, persistence)
+├── server.js         # Multiplayer server (state, economy, market, expansions, animal purchases, growth, animal AI, persistence)
 ├── package.json
 ├── public/
-│   └── index.html    # Game client (rendering, photo drag/zoom editor, Market, Build & Expand UI)
+│   └── index.html    # Game client (rendering, photo drag/zoom editor, Market, Build & Expand UI incl. Buy Animals)
 └── README.md
 ```
 
@@ -91,8 +87,8 @@ Zero external dependencies — only Node's built-in `http` and `fs` modules.
    `package.json`, `README.md`, and the `public` folder (same-named files
    overwrite automatically).
 3. Commit — your host auto-redeploys. This resets the current season's
-   progress (crops, coins, expansions, kudos) — farmer roster and custom
-   sentiments stay.
+   progress (crops, coins, expansions, purchased animals, kudos) — farmer
+   roster and custom sentiments stay.
 
 ## 🚀 First-time deploy (recommended: Render Starter + persistent disk)
 
@@ -118,5 +114,7 @@ npm start
 
 - **Single shared farm per deployment.**
 - **Casual-scale** — built for a team of roughly 2–30 people.
+- **Animal cap** of 16 total (across all types) so the pen never visually
+  overflows.
 - **Photos are stored as compressed data URLs** in the shared state file —
   fine for a small team, not meant for hundreds of users.
