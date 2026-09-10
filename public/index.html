@@ -341,7 +341,7 @@
       <li>This farm is <b>live and shared</b> — everyone who opens this page joins the same farm and sees each other in real time.</li>
       <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one random seed into the shared Seed Bank.</li>
       <li><b>Till</b> a soil plot, then <b>Plant</b> — but you can only plant crop types the team has seeds for.</li>
-      <li><b>Crops grow over real time</b> — each crop type takes a different amount of time, loosely based on how long it actually takes to grow in real life (fast root veggies like carrots are quicker; pumpkins and strawberries take longer). <b>Watering is optional</b> and speeds things up a little (up to 3 waters, each shaving off some time) — but you can't rush a crop to ripeness by spam-clicking, real time always has to pass.</li>
+      <li><b>Crops grow over real calendar days</b> — this is a "check in throughout the week" farm, not a one-sitting game. Each crop takes a different number of days, loosely matching how long it actually takes to grow in real life: 🥕 Carrot ~1 day, 🌽 Corn ~1.5 days, 🍅 Tomato ~2 days, 🌻 Sunflower ~3 days, 🍓 Strawberry ~4.5 days, 🎃 Pumpkin ~7 days (the max). <b>Watering is optional</b> and speeds things up a little (up to 3 waters, each shaving off some time) — but nobody can rush a crop to ripeness by clicking, real days always have to pass. Come back and check on your plots over the week!</li>
       <li><b>Harvest</b> once it's ready into the shared Harvest Basket.</li>
       <li><b>Animals are picky eaters</b> — chickens ONLY eat corn 🌽, cows ONLY eat carrots 🥕, sheep ONLY eat strawberries 🍓. No substitutes!</li>
       <li>Keep animals happy and they'll reward the team with eggs 🥚, milk 🥛, and wool 🧶.</li>
@@ -406,14 +406,16 @@ const REDUCTION_PER_WATER = 0.10;
 const KUDOS_REMINDER_MS = 5 * 60 * 1000; // gentle nudge if no kudos sent in 5 min
 
 /* Grow durations mirrored from server.js — see that file's header
-   comment for the real-world "days to maturity" this is based on. */
+   comment for the real-world "days to maturity" this is based on.
+   Now scaled to real DAYS (max ~1 week for the slowest crop). */
+const DAY_MS = 24 * 60 * 60 * 1000;
 const CROP_GROWTH_MS = {
-  carrot:     3.5 * 60 * 1000,
-  corn:       3.75 * 60 * 1000,
-  tomato:     3.75 * 60 * 1000,
-  sunflower:  4.25 * 60 * 1000,
-  strawberry: 5   * 60 * 1000,
-  pumpkin:    5.5 * 60 * 1000
+  carrot:     1.0 * DAY_MS,
+  corn:       1.5 * DAY_MS,
+  tomato:     2.0 * DAY_MS,
+  sunflower:  3.0 * DAY_MS,
+  strawberry: 4.5 * DAY_MS,
+  pumpkin:    7.0 * DAY_MS
 };
 
 const CROPS = [
@@ -426,10 +428,26 @@ const CROPS = [
 ];
 function cropEmoji(id){ const c = CROPS.find(x=>x.id===id); return c ? c.emoji : '❓'; }
 function cropInfo(id){ return CROPS.find(x=>x.id===id); }
-function formatMMSS(ms){
-  const secs = Math.max(0, Math.ceil(ms/1000));
-  const mm = Math.floor(secs/60), ss = secs%60;
-  return `${mm}:${String(ss).padStart(2,'0')}`;
+/* Formats a duration for multi-day grow times: shows the two most
+   relevant units (e.g. "2d 5h", "5h 30m", "12m", "0:45") so it stays
+   readable whether a crop has days, hours, or just minutes left. */
+function formatDuration(ms){
+  const totalSecs = Math.max(0, Math.ceil(ms/1000));
+  const days = Math.floor(totalSecs / 86400);
+  const hours = Math.floor((totalSecs % 86400) / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  if(days > 0) return `${days}d ${hours}h`;
+  if(hours > 0) return `${hours}h ${mins}m`;
+  if(mins > 0) return `${mins}m`;
+  return `${secs}s`;
+}
+/* Short label for the Plant menu / How-to-Play text, e.g. "1 day", "7 days". */
+function formatDurationLong(ms){
+  const days = ms / DAY_MS;
+  if(days === 1) return '1 day';
+  if(Number.isInteger(days)) return `${days} days`;
+  return `${days.toFixed(1)} days`;
 }
 
 const ANIMAL_DISPLAY = {
@@ -643,7 +661,7 @@ function drawFarmland(r,c,x,y){
     ctx.font=(TILE*(0.28+0.27*pct))+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(ready ? cropEmoji(cell.type) : (pct<0.5?'🌱':'🌿'), x+TILE/2, y+TILE*0.42);
     // countdown / ready label, drawn on a small pill for legibility against any background
-    const label = ready ? 'Ready!' : formatMMSS(dur-elapsed);
+    const label = ready ? 'Ready!' : formatDuration(dur-elapsed);
     ctx.font=(TILE*0.17)+'px sans-serif';
     const labelW = ctx.measureText(label).width;
     const pillX = x+TILE/2-labelW/2-5, pillY = y+TILE*0.78, pillW = labelW+10, pillH = TILE*0.17;
@@ -1129,7 +1147,7 @@ function openPlantModal(r,c){
     if(hasSeed && selected===null) selected = cr.id;
     const div = document.createElement('div');
     div.className='crop-choice' + (hasSeed ? '' : ' disabled');
-    div.innerHTML = `<span class="emoji">${cr.emoji}</span>${cr.name}<span class="growtime">⏱ ${formatMMSS(CROP_GROWTH_MS[cr.id])}</span><span class="seedcount">${seedCount} seed${seedCount===1?'':'s'}</span>`;
+    div.innerHTML = `<span class="emoji">${cr.emoji}</span>${cr.name}<span class="growtime">⏱ ${formatDurationLong(CROP_GROWTH_MS[cr.id])}</span><span class="seedcount">${seedCount} seed${seedCount===1?'':'s'}</span>`;
     if(hasSeed){
       div.onclick = ()=>{
         wrap.querySelectorAll('.crop-choice').forEach(d=>d.classList.remove('selected'));
@@ -1157,7 +1175,7 @@ document.getElementById('plantConfirm').onclick = async ()=>{
   const {r,c} = plantTarget;
   const res = await apiCall('/api/plant', {playerId:myPlayerId, r, c, cropId:chosen});
   overlay.style.display='none';
-  if(res.ok){ toast(`🌱 Planted ${cropInfo(chosen).name}! Ready in ~${formatMMSS(CROP_GROWTH_MS[chosen])}.`); }
+  if(res.ok){ toast(`🌱 Planted ${cropInfo(chosen).name}! Ready in ~${formatDurationLong(CROP_GROWTH_MS[chosen])}.`); }
   else if(res.error){ toast('⚠️ '+res.error); }
   renderHUD();
 };

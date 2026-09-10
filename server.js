@@ -18,20 +18,35 @@
      5. Leaderboards keep the team accountable for kudos.
 
    ------------------------------------------------------------
-   GROWTH TIMING (real elapsed time, not click-spam):
-     Each crop has its own grow duration, scaled proportionally
-     from real-world "days to maturity" horticultural averages
-     (approx. 3 in-game seconds per real-world day):
-       Carrot     ~70 real days  -> 3:30 in-game
-       Corn       ~75 real days  -> 3:45 in-game
-       Tomato     ~75 real days  -> 3:45 in-game
-       Sunflower  ~85 real days  -> 4:15 in-game
-       Strawberry ~100 real days -> 5:00 in-game
-       Pumpkin    ~110 real days -> 5:30 in-game
-     Watering is now an OPTIONAL booster (not a hard requirement):
-     each watering (up to a cap) shaves a percentage off the
-     remaining grow time, rewarding attentiveness, but real time
-     always has to pass — you can't spam-click a crop to ripeness.
+   GROWTH TIMING (real calendar time, multi-day, max ~1 week):
+     Each crop takes real DAYS to grow — this is a persistent
+     "check in over the week" farm, not a single-sitting game.
+     Durations preserve the same relative order as real-world
+     "days to maturity" horticultural data (fast root veggies
+     quicker, large vine fruit slower), compressed so the
+     slowest crop (pumpkin) tops out at 7 days:
+       Carrot      1.0 day
+       Corn        1.5 days
+       Tomato      2.0 days
+       Sunflower   3.0 days
+       Strawberry  4.5 days
+       Pumpkin     7.0 days
+     Watering is an OPTIONAL booster (not a hard requirement):
+     each watering (up to 3 times) shaves 10% off the remaining
+     grow time (30% max), rewarding attentiveness, but real time
+     always has to pass — nobody can rush a crop to ripeness by
+     clicking.
+
+   ------------------------------------------------------------
+   PERSISTENCE (required for multi-day growth to survive restarts):
+     Since crops can now take up to a week, the server persists
+     its full state to a local JSON file after every change, and
+     reloads it on startup. This is ESSENTIAL wherever this is
+     hosted: a free-tier host that spins down after 15 minutes of
+     inactivity (and has no persistent disk) will otherwise lose
+     all in-progress crops the first time nobody visits for 15
+     minutes. See README.md for hosting guidance that keeps this
+     data alive for the full week.
    ============================================================ */
 
 const http = require('http');
@@ -46,17 +61,20 @@ const HAPPY_MAX = 5;
 
 const CROP_IDS = ['sunflower','carrot','strawberry','corn','pumpkin','tomato'];
 
-/* Grow durations in milliseconds. NOTE: this is a `let`-free plain
-   object mutated only by the local test harness (never in
-   production) to speed up time-gating tests without waiting
-   real minutes — see the exports at the bottom of this file. */
+/* Grow durations in milliseconds, scaled to real DAYS (max ~1 week
+   for the slowest crop). This object is intentionally mutable —
+   never mutated in production, but a local test harness can shrink
+   these values (preserving ratios) to verify time-gating logic
+   without waiting real days — see the exports at the bottom of
+   this file. */
+const DAY_MS = 24 * 60 * 60 * 1000;
 const CROP_GROWTH_MS = {
-  carrot:     3.5 * 60 * 1000,
-  corn:       3.75 * 60 * 1000,
-  tomato:     3.75 * 60 * 1000,
-  sunflower:  4.25 * 60 * 1000,
-  strawberry: 5   * 60 * 1000,
-  pumpkin:    5.5 * 60 * 1000
+  carrot:     1.0 * DAY_MS,
+  corn:       1.5 * DAY_MS,
+  tomato:     2.0 * DAY_MS,
+  sunflower:  3.0 * DAY_MS,
+  strawberry: 4.5 * DAY_MS,
+  pumpkin:    7.0 * DAY_MS
 };
 
 const REDUCTION_PER_WATER = 0.10; // each watering shaves 10% off the base duration
@@ -128,8 +146,54 @@ function defaultState(){
     version:0
   };
 }
-let state = defaultState();
-function bump(){ state.version++; }
+/* ============ Persistence ============
+   Since crops now take real days to grow, the server's in-memory
+   state MUST survive process restarts, or a host that spins the
+   server down after a period of inactivity (common on free tiers)
+   would silently wipe out days of progress. We persist the full
+   state to a local JSON file after every mutation, and reload it
+   on startup. This only actually protects the data if the
+   underlying filesystem itself persists across restarts/redeploys
+   — see README.md for hosting guidance (this generally requires a
+   paid host with a persistent disk, or a self-hosted always-on
+   machine; most free tiers wipe local files on every restart). */
+const STATE_FILE = path.join(__dirname, 'farm-state.json');
+
+function loadStateFromDisk(){
+  try{
+    if(fs.existsSync(STATE_FILE)){
+      const raw = fs.readFileSync(STATE_FILE, 'utf8');
+      const loaded = JSON.parse(raw);
+      // Merge onto a fresh defaultState() so any new fields added in
+      // future versions still get sensible defaults instead of undefined.
+      return Object.assign(defaultState(), loaded);
+    }
+  }catch(e){
+    console.error('Failed to load persisted state, starting fresh:', e.message);
+  }
+  return defaultState();
+}
+
+let state = loadStateFromDisk();
+let saveScheduled = false;
+function saveStateToDisk(){
+  saveScheduled = false;
+  try{
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state));
+  }catch(e){
+    console.error('Failed to persist state to disk:', e.message);
+  }
+}
+/* Debounced so a rapid burst of actions (several players acting in
+   the same second) collapses into a single disk write shortly after,
+   rather than writing synchronously on every single request. */
+function scheduleSave(){
+  if(saveScheduled) return;
+  saveScheduled = true;
+  setTimeout(saveStateToDisk, 250);
+}
+
+function bump(){ state.version++; scheduleSave(); }
 function points(){ return state.totalHarvests + state.totalProducts; }
 
 const MAX_KUDOS_LOG = 300;
@@ -159,6 +223,19 @@ function effectiveDurationMs(cell){
 function readyAtMs(cell){ return (cell.plantedAt||0) + effectiveDurationMs(cell); }
 function isReady(cell){ return !!cell.type && Date.now() >= readyAtMs(cell); }
 function remainingMs(cell){ return Math.max(0, readyAtMs(cell) - Date.now()); }
+/* Human-readable remaining-time label for error messages, e.g.
+   "2d 5h", "3h 20m", "12m" — mirrors the client's formatDuration(). */
+function formatRemaining(ms){
+  const totalSecs = Math.max(0, Math.ceil(ms/1000));
+  const days = Math.floor(totalSecs / 86400);
+  const hours = Math.floor((totalSecs % 86400) / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  if(days > 0) return `${days}d ${hours}h`;
+  if(hours > 0) return `${hours}h ${mins}m`;
+  if(mins > 0) return `${mins}m`;
+  return `${secs}s`;
+}
 
 /* ============ API handlers ============ */
 function apiJoin(body){
@@ -269,9 +346,7 @@ function apiHarvest(body){
   const cell = getOrCreateCell(r,c);
   if(cell.stage!==2 || !cell.type) return {ok:false, error:'Nothing to harvest.'};
   if(!isReady(cell)){
-    const secs = Math.ceil(remainingMs(cell)/1000);
-    const mm = Math.floor(secs/60), ss = secs%60;
-    return {ok:false, error:`Still growing — ${mm}:${String(ss).padStart(2,'0')} left!`};
+    return {ok:false, error:`Still growing — ${formatRemaining(remainingMs(cell))} left!`};
   }
   state.inventory[cell.type] = (state.inventory[cell.type]||0) + 1;
   state.totalHarvests++;
@@ -433,10 +508,21 @@ const server = http.createServer((req,res)=>{
 
 server.listen(PORT, ()=>{
   console.log(`Team Farm Explorer multiplayer server running on port ${PORT}`);
+  console.log(`Persisting state to: ${STATE_FILE}`);
 });
+
+/* Flush any pending debounced save immediately on graceful shutdown,
+   so a deploy/restart doesn't lose the last few seconds of actions. */
+function flushAndExit(){
+  if(saveScheduled) saveStateToDisk();
+  process.exit(0);
+}
+process.on('SIGINT', flushAndExit);
+process.on('SIGTERM', flushAndExit);
 
 /* Exported for local testing only: CROP_GROWTH_MS is intentionally
    mutable so a test harness can shrink grow durations (e.g. to a
    couple of seconds) to verify time-gating logic without waiting
-   real minutes. Never mutated in production. */
-module.exports = { server, CROP_GROWTH_MS, MAX_WATER_BOOSTS, REDUCTION_PER_WATER, CROP_IDS };
+   real days. Never mutated in production. STATE_FILE is exported
+   so tests can clean up the persisted file between runs. */
+module.exports = { server, CROP_GROWTH_MS, MAX_WATER_BOOSTS, REDUCTION_PER_WATER, CROP_IDS, STATE_FILE, saveStateToDisk };
