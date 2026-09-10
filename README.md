@@ -1,12 +1,30 @@
-# 🌾 Team Farm Explorer — Real-Time Multiplayer
+# 🌾 Team Farm Explorer — Real-Time Multiplayer (Kudos Economy Edition)
 
-A live, shared farm for team bonding. Everyone who opens the link joins the
-**same farm** and sees each other walking around, tilling soil, planting
-crops, feeding animals, and leaving kudos — all in real time.
+A live, shared farm for team bonding — now with a game economy that ties
+**every crop the team grows directly back to recognizing each other**.
 
-This is a small Node.js project with **zero external dependencies** (it only
-uses Node's built-in `http` module), so it's easy to deploy anywhere that
-runs Node.
+---
+
+## 🌱 How the new economy works
+
+1. **Seeds only come from sending kudos.** Recognize a teammate on the Kudos
+   Board and the *team* earns one random seed (one of 6 crop types) into a
+   shared Seed Bank. No kudos = no seeds = nothing to grow.
+2. **Planting spends a seed.** When you till a plot and go to plant, you can
+   only choose crop types the team actually has seeds banked for — the Plant
+   menu greys out anything you don't have.
+3. **Harvesting fills the shared Harvest Basket** with the grown crop.
+4. **Animals are picky eaters.** Chickens ONLY eat corn 🌽, cows ONLY eat
+   carrots 🥕, sheep ONLY eat strawberries 🍓 — no substitutes. The team has
+   to deliberately grow (and therefore deliberately earn seeds for) the right
+   crop to raise each animal.
+5. **Leaderboards keep everyone accountable** — "Top Kudos Givers" sits right
+   alongside "Master Growers" and "Best Caretakers," so the team can see at a
+   glance who's remembering to recognize others, not just who's farming.
+
+This turns kudos from a "nice to have" side feature into the literal engine
+that makes the whole farm run — the more the team recognizes each other, the
+more it can grow together.
 
 ---
 
@@ -21,70 +39,63 @@ team-farm-explorer/
 └── README.md          # You're reading it
 ```
 
+This is a small Node.js project with **zero external dependencies** (it only
+uses Node's built-in `http` module), so it's easy to deploy anywhere that
+runs Node.
+
 ## How it works (in plain terms)
 
 - The **server** keeps one shared copy of the farm (who's playing, crops,
-  animals, kudos, decorations) in memory.
+  animals, the seed bank, the harvest basket, kudos, decorations) in memory.
 - Every player's browser polls the server about once a second to see what
-  everyone else has done, and sends a request every time *they* do something
-  (till, plant, water, harvest, feed, post kudos, place a decoration).
+  everyone else has done, and sends a request every time *they* do something.
 - Because state lives in the server's memory, **it resets if the server
   restarts** (e.g. a free host spinning down from inactivity, or a redeploy).
-  That's totally fine for a single team-social "season" — just use the
-  in-game **New Season** button when you want a clean slate, and know that a
-  long-idle server will start fresh next time it wakes up.
+  That's fine for a single team-social "season" — use the in-game
+  **New Season** button anytime you want a clean slate.
 
 ---
 
 ## 🚀 Deploy it in ~5 minutes (Render, free, no credit card)
 
-I recommend **[Render](https://render.com)** because, as of today, it's one
-of the only hosts that gives you a real, always-running Node server for free
-with no credit card required. The one trade-off: a free Render service goes
-to sleep after 15 minutes with no visitors, and takes ~30–60 seconds to wake
-back up on the next request — so if you're kicking off a team social, open
-the link a minute early to "wake it up" before everyone joins.
+1. **Get the code onto GitHub:**
+   - Create a new repository on [github.com](https://github.com).
+   - If the repo is empty, use the **"uploading an existing file"** link on
+     the Quick Setup page (or create one small file first, like a README, so
+     the normal **Add file → Upload files** button appears).
+   - Upload `server.js`, `package.json`, `README.md`, and the whole `public`
+     folder, then commit.
 
-**Steps:**
-
-1. **Get the code onto GitHub** (Render deploys from a Git repo):
-   - Create a new, empty repository on [github.com](https://github.com) (e.g. `team-farm-explorer`).
-   - Upload all the files in this folder to that repo (drag-and-drop works fine on GitHub's web UI, or use `git push` if you're comfortable with Git).
-
-2. **Create the Render service:**
-   - Go to [render.com](https://render.com) and sign up (GitHub, GitLab, or Google login — no card needed).
-   - Click **New +** → **Web Service**.
-   - Connect your GitHub account and pick the repo you just created.
-   - Render will auto-detect it's a Node app. Confirm these settings:
+2. **Deploy on [render.com](https://render.com):**
+   - Sign up (GitHub login works great — no card needed).
+   - Click **New +** → **Web Service**, connect your GitHub account, and
+     select your repo.
+   - Confirm these settings:
      - **Build Command:** `npm install`
      - **Start Command:** `npm start`
      - **Instance Type:** Free
-   - Click **Create Web Service**.
+   - Click **Create Web Service** and wait ~1–2 minutes.
 
-3. **Wait ~1–2 minutes** for the first deploy to finish. Render will give you
-   a live URL like `https://team-farm-explorer.onrender.com`.
+3. **Share the live URL** Render gives you (e.g.
+   `https://team-farm-explorer.onrender.com`) with your team.
 
-4. **Share that URL with your team** — everyone who opens it joins the same
-   live farm. 🎉
-
-### Updating the game later
-Just push changes to the same GitHub repo — Render automatically redeploys
-on every push (this will also reset the current season's farm state).
+### Good to know
+- Free Render services sleep after 15 minutes of no visitors and take
+  ~30–60 seconds to wake up on the next request — open the link yourself a
+  minute before your team social to warm it up.
+- To update the game later, re-upload changed files to the same GitHub repo
+  — Render auto-redeploys on every push (this resets the current season).
 
 ---
 
 ## Alternative: run it yourself on any computer/server
 
-If your organization already has somewhere to run a small Node app
-internally (a shared server, an internal VM, etc.), you don't need Render at
-all:
-
 ```bash
-npm install    # (no-op here since there are no dependencies, but harmless)
+npm install    # no-op here since there are no dependencies, but harmless
 npm start
 ```
 
-By default it listens on port `3000` — open `http://<that-computer's-address>:3000`
+Listens on port `3000` by default — open `http://<that-computer's-address>:3000`
 from any device on the same network. Set the `PORT` environment variable to
 use a different port.
 
@@ -93,12 +104,8 @@ use a different port.
 ## Limitations to know about
 
 - **No persistence** — state lives in memory only. A server restart clears
-  the farm (roster included). Great for single-session team socials; not a
-  system of record.
+  the farm (roster included).
 - **Single shared farm per deployment** — everyone who opens the URL lands
-  on the same farm. If you want two teams to have separate independent
-  farms, deploy two separate instances (two Render services from the same
-  repo work fine).
-- **Casual-scale, not enterprise-scale** — this is built for a team of
-  roughly 2–30 people on a shared social, not a large-scale production
-  service.
+  on the same farm. Deploy separate instances for separate teams.
+- **Casual-scale** — built for a team of roughly 2–30 people on a shared
+  social, not a large-scale production service.

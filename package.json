@@ -1,7 +1,7 @@
 {
   "name": "team-farm-explorer-multiplayer",
-  "version": "1.0.0",
-  "description": "Real-time multiplayer team-bonding farm game (Node.js, zero dependencies).",
+  "version": "2.0.0",
+  "description": "Real-time multiplayer team-bonding farm game with a kudos-driven seed economy (Node.js, zero dependencies).",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

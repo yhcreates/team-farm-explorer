@@ -55,10 +55,19 @@
   .btn-primary{ background:var(--accent); color:#fff; }
   .btn-secondary{ background:#dfe6e9; color:#2d3436; }
   .btn-danger{ background:var(--accent2); color:#fff; }
+  .btn-kudos{ background:#ff6b9d; color:#fff; font-size:0.95rem; padding:10px 18px; }
 
   main{ max-width:1080px; margin:0 auto 40px; padding:0 16px; }
 
-  .game-wrap{ display:flex; justify-content:center; }
+  .kudos-cta{
+    max-width:760px; margin:14px auto 0; padding:14px 18px; background:linear-gradient(135deg,#fff3e0,#ffe0ec);
+    border-radius:var(--radius); box-shadow:var(--shadow); display:flex; align-items:center; justify-content:space-between;
+    gap:12px; flex-wrap:wrap;
+  }
+  .kudos-cta .msg{ font-size:0.88rem; font-weight:600; color:#7a3b1a; }
+  .kudos-cta .msg span{ font-weight:800; }
+
+  .game-wrap{ display:flex; justify-content:center; margin-top:14px; }
   #gameCanvas{
     background:#8fd17c; border:10px solid #7a5230; border-radius:14px;
     box-shadow:var(--shadow); image-rendering:pixelated; max-width:100%; height:auto;
@@ -84,14 +93,20 @@
   }
   .act-btn.enabled:hover{ transform:translateY(-2px); }
   .act-btn.enabled:active{ transform:translateY(1px); box-shadow:0 1px 0 rgba(255,159,67,0.5); }
+  .act-btn.kudos-highlight{ background:linear-gradient(180deg,#ffd3e6,#ff9fc4); opacity:1; cursor:pointer; pointer-events:auto; }
 
-  .inventory-strip{
-    max-width:760px; margin:14px auto 0; padding:10px 16px; background:var(--card-bg);
-    border-radius:var(--radius); box-shadow:var(--shadow); display:flex; flex-wrap:wrap; gap:14px;
-    justify-content:center; font-size:0.9rem;
+  .inventory-panel{
+    max-width:760px; margin:14px auto 0; padding:12px 16px; background:var(--card-bg);
+    border-radius:var(--radius); box-shadow:var(--shadow);
   }
+  .inv-group{ margin-bottom:10px; }
+  .inv-group:last-child{ margin-bottom:0; }
+  .inv-group-title{ font-size:0.72rem; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.03em; margin-bottom:4px; }
+  .inv-row{ display:flex; flex-wrap:wrap; gap:12px; font-size:0.9rem; }
   .inv-item{ display:flex; align-items:center; gap:5px; font-weight:600; }
   .inv-item .n{ color:var(--green-dark); }
+  .inv-item.zero .n{ color:#bbb; }
+  .inv-item.zero{ opacity:0.55; }
 
   .lower-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:18px; margin-top:22px; }
   @media (max-width:800px){ .lower-grid{ grid-template-columns:1fr; } }
@@ -147,9 +162,11 @@
 
   .crop-choices{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px; }
   .crop-choice{ border:2px solid transparent; border-radius:10px; padding:8px 4px; text-align:center; cursor:pointer;
-    background:#f4f6f8; font-size:0.75rem; }
+    background:#f4f6f8; font-size:0.75rem; position:relative; }
   .crop-choice .emoji{ font-size:1.5rem; display:block; }
+  .crop-choice .seedcount{ display:block; font-size:0.68rem; color:#888; margin-top:2px; }
   .crop-choice.selected{ border-color:var(--accent); background:#fff3e0; }
+  .crop-choice.disabled{ opacity:0.35; cursor:not-allowed; pointer-events:none; }
 
   .roster-list{ display:flex; flex-direction:column; gap:8px; margin-top:8px; max-height:220px; overflow-y:auto; }
   .roster-item{ display:flex; align-items:center; gap:10px; background:#f4f6f8; border-radius:10px; padding:6px 10px; }
@@ -162,7 +179,7 @@
 
 <header>
   <h1>🌾 Team Farm Explorer</h1>
-  <p>Design your farmer, walk the shared farm, grow crops, and care for the animals — together, in real time.</p>
+  <p>Recognize a teammate, earn a seed, grow it together, and feed the farm — live, in real time.</p>
   <div class="conn-badge offline" id="connBadge"><span class="conn-dot"></span><span id="connText">Connecting…</span></div>
 </header>
 
@@ -185,6 +202,11 @@
   </div>
 </div>
 
+<div class="kudos-cta">
+  <div class="msg">💌 Seeds only come from sending kudos! Your team has earned <span id="totalSeedsMsg">0</span> seeds from <span id="totalKudosMsg">0</span> kudos so far.</div>
+  <button class="btn-kudos" id="btnSendKudosCta">💌 Send a Kudos</button>
+</div>
+
 <main>
   <div class="game-wrap">
     <canvas id="gameCanvas" width="756" height="504" tabindex="0"></canvas>
@@ -200,7 +222,20 @@
     <button class="act-btn" id="actKudos" data-act="kudos">💌<span>Leave Kudos</span></button>
   </div>
 
-  <div class="inventory-strip" id="inventoryStrip"></div>
+  <div class="inventory-panel">
+    <div class="inv-group">
+      <div class="inv-group-title">🌱 Seed Bank (earned from kudos — spend to plant)</div>
+      <div class="inv-row" id="seedStrip"></div>
+    </div>
+    <div class="inv-group">
+      <div class="inv-group-title">🧺 Harvest Basket (feed to animals)</div>
+      <div class="inv-row" id="harvestStrip"></div>
+    </div>
+    <div class="inv-group">
+      <div class="inv-group-title">🐾 Animal Products</div>
+      <div class="inv-row" id="productStrip"></div>
+    </div>
+  </div>
 
   <div class="lower-grid">
     <div class="panel">
@@ -259,6 +294,7 @@
 <div class="overlay" id="plantOverlay" style="display:none;">
   <div class="modal">
     <h2>🌱 What will you plant?</h2>
+    <p style="font-size:0.8rem;color:#777;" id="plantSeedNote">Only crops with seeds in the team's Seed Bank can be planted.</p>
     <div class="crop-choices" id="cropChoices"></div>
     <div class="modal-actions">
       <button class="btn-secondary" id="plantCancel">Cancel</button>
@@ -271,6 +307,7 @@
 <div class="overlay" id="kudosOverlay" style="display:none;">
   <div class="modal">
     <h2>💌 Leave a Kudos Message</h2>
+    <p style="font-size:0.8rem;color:#777;">Sending a kudos earns the team a random seed! 🌱</p>
     <label>From</label>
     <select id="kudosFrom"></select>
     <label>To</label>
@@ -291,12 +328,13 @@
   <div class="modal">
     <h2>❓ How to Play</h2>
     <ol style="font-size:0.9rem; line-height:1.6;">
-      <li>This farm is <b>live and shared</b> — everyone who opens this page joins the same farm and sees each other moving around in real time.</li>
-      <li><b>Move</b> with Arrow keys, WASD, or click anywhere to walk there automatically.</li>
-      <li>Walk onto a soil plot (or click one) to <b>till</b> it, <b>plant</b> a crop, <b>water</b> it a few times, then <b>harvest</b> — or use the action buttons below, which light up automatically based on where you're standing.</li>
-      <li>Harvested crops go into the team's shared <b>Inventory</b>. Feed the animals in the pen with them — chickens love corn 🌽, cows love carrots 🥕, sheep love strawberries 🍓.</li>
+      <li>This farm is <b>live and shared</b> — everyone who opens this page joins the same farm and sees each other in real time.</li>
+      <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one random seed into the shared Seed Bank. No kudos, no seeds, no crops — so keep the recognition flowing!</li>
+      <li><b>Till</b> a soil plot, then <b>Plant</b> — but you can only plant crop types the team actually has seeds for. Check the Seed Bank before you till!</li>
+      <li><b>Water</b> a few times, then <b>Harvest</b> into the shared Harvest Basket.</li>
+      <li><b>Animals are picky eaters</b> — chickens ONLY eat corn 🌽, cows ONLY eat carrots 🥕, sheep ONLY eat strawberries 🍓. You have to grow their exact favorite to feed them — no substitutes!</li>
       <li>Keep animals happy and they'll reward the team with eggs 🥚, milk 🥛, and wool 🧶.</li>
-      <li>Visit the <b>Kudos Board</b> near the farmhouse to leave a message of appreciation for a teammate.</li>
+      <li>Check the <b>leaderboards</b> — Top Kudos Givers keeps everyone accountable for remembering to recognize the team, not just farming!</li>
       <li>Open <b>🏗️ Build</b> to spend the team's harvest points on farm decorations that unlock as everyone plays.</li>
       <li>Use <b>🎨 My Farmer</b> to change your own name or look anytime.</li>
     </ol>
@@ -339,8 +377,8 @@
 /* ============================================================
    Team Farm Explorer — Multiplayer Client
    ------------------------------------------------------------
-   All shared game state (farmers, crops, animals, inventory,
-   kudos, decorations) lives on the server. This client:
+   Shared game state (farmers, crops, animals, seed bank, harvest
+   basket, kudos, decorations) lives on the server. This client:
      1. Renders everything from a local mirror of that state.
      2. Polls GET /api/state every ~900ms to pick up other
         players' changes.
@@ -350,6 +388,12 @@
      4. Animates your own farmer locally for smooth walking,
         and gently interpolates every other farmer's position
         between polls so movement doesn't look like teleporting.
+
+   ECONOMY: seeds only come from sending kudos (random crop type
+   per kudos). Planting spends a seed of the chosen type. Animals
+   only accept their own liked crop when fed. See server.js for
+   the authoritative rules — this file mirrors them for instant
+   client-side validation/UX, but the server always has final say.
    ============================================================ */
 
 /* ============ Constants (must match server thresholds) ============ */
@@ -437,9 +481,15 @@ function isObstacle(t){ return OBSTACLES.has(t); }
 function cellKey(r,c){ return r+','+c; }
 
 /* ============ Networking ============ */
-const PLAYER_ID_KEY = 'teamFarmPlayerId_v1';
+const PLAYER_ID_KEY = 'teamFarmPlayerId_v2';
 let myPlayerId = null;
-let state = { teamName:'', farmers:[], crops:{}, animals:[], inventory:{}, kudosLog:[], stats:{givers:{},contributors:{},caretakers:{}}, totalHarvests:0, totalProducts:0, decorations:{} };
+let state = {
+  teamName:'', farmers:[], crops:{}, animals:[],
+  seeds:{sunflower:0,carrot:0,strawberry:0,corn:0,pumpkin:0,tomato:0},
+  inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0,egg:0,milk:0,wool:0},
+  kudosLog:[], stats:{givers:{},contributors:{},caretakers:{}},
+  totalHarvests:0, totalProducts:0, totalKudos:0, decorations:{}
+};
 let isConnected = false;
 
 async function apiCall(pathName, body){
@@ -477,6 +527,7 @@ function setConnected(ok){
   text.textContent = ok ? 'Live — connected' : 'Reconnecting…';
 }
 function currentPoints(){ return state.totalHarvests + state.totalProducts; }
+function totalSeeds(){ return Object.values(state.seeds||{}).reduce((a,b)=>a+b,0); }
 function myFarmer(){ return state.farmers.find(f=>f.id===myPlayerId); }
 function animalAt(r,c){ return state.animals.find(a=>a.r===r && a.c===c); }
 
@@ -906,22 +957,47 @@ function renderLevelBar(){
   if(next) pct = Math.min(100, Math.round(((pts-lvl.min)/(next.min-lvl.min))*100));
   document.getElementById('levelFill').style.width = pct+'%';
 }
-function renderInventory(){
-  const wrap = document.getElementById('inventoryStrip');
+function renderSeedStrip(){
+  const wrap = document.getElementById('seedStrip');
   wrap.innerHTML='';
-  const order = ['carrot','corn','strawberry','pumpkin','tomato','sunflower','egg','milk','wool'];
-  order.forEach(k=>{
-    const emoji = CROPS.find(c=>c.id===k)?.emoji || (k==='egg'?'🥚':k==='milk'?'🥛':k==='wool'?'🧶':'❔');
+  CROPS.forEach(cr=>{
+    const n = (state.seeds && state.seeds[cr.id]) || 0;
     const div = document.createElement('div');
-    div.className='inv-item';
-    div.innerHTML = `${emoji} <span class="n">${state.inventory[k]||0}</span>`;
+    div.className='inv-item' + (n===0 ? ' zero':'');
+    div.innerHTML = `${cr.emoji} <span class="n">${n}</span>`;
     wrap.appendChild(div);
   });
+}
+function renderHarvestStrip(){
+  const wrap = document.getElementById('harvestStrip');
+  wrap.innerHTML='';
+  CROPS.forEach(cr=>{
+    const n = state.inventory[cr.id] || 0;
+    const div = document.createElement('div');
+    div.className='inv-item' + (n===0 ? ' zero':'');
+    div.innerHTML = `${cr.emoji} <span class="n">${n}</span>`;
+    wrap.appendChild(div);
+  });
+}
+function renderProductStrip(){
+  const wrap = document.getElementById('productStrip');
+  wrap.innerHTML='';
+  [['egg','🥚'],['milk','🥛'],['wool','🧶']].forEach(([k,emoji])=>{
+    const n = state.inventory[k] || 0;
+    const div = document.createElement('div');
+    div.className='inv-item' + (n===0 ? ' zero':'');
+    div.innerHTML = `${emoji} <span class="n">${n}</span>`;
+    wrap.appendChild(div);
+  });
+}
+function renderKudosCta(){
+  document.getElementById('totalSeedsMsg').textContent = totalSeeds();
+  document.getElementById('totalKudosMsg').textContent = state.totalKudos || 0;
 }
 function renderKudosFeed(){
   const feed = document.getElementById('kudosFeed');
   feed.innerHTML='';
-  if(!state.kudosLog || state.kudosLog.length===0){ feed.innerHTML = '<p class="empty-note">No kudos yet — visit the Kudos Board to leave one! 💌</p>'; return; }
+  if(!state.kudosLog || state.kudosLog.length===0){ feed.innerHTML = '<p class="empty-note">No kudos yet — visit the Kudos Board to leave one and earn the team a seed! 💌</p>'; return; }
   [...state.kudosLog].reverse().forEach(k=>{
     const info = cropInfo(k.cropId);
     const div = document.createElement('div');
@@ -960,7 +1036,10 @@ function renderOnlineList(){
 }
 function renderHUD(){
   renderLevelBar();
-  renderInventory();
+  renderSeedStrip();
+  renderHarvestStrip();
+  renderProductStrip();
+  renderKudosCta();
   renderKudosFeed();
   renderLeaderboards();
   renderOnlineList();
@@ -983,6 +1062,11 @@ function refreshActionPanel(){
     if(!btn) return;
     btn.classList.toggle('enabled', !!enabledMap[key]);
   });
+  // The kudos action button always stays reachable-looking (highlighted) since
+  // it can be triggered from the CTA button too, but only truly "enabled" (walk
+  // required) when standing on the board — the highlight nudges people to go there.
+  const kudosBtn = document.getElementById('actKudos');
+  if(kudosBtn && !enabledMap.kudos) kudosBtn.classList.remove('enabled');
 }
 
 /* ============ Plant Modal ============ */
@@ -991,24 +1075,39 @@ function openPlantModal(r,c){
   plantTarget = {r,c};
   const wrap = document.getElementById('cropChoices');
   wrap.innerHTML='';
-  let selected = CROPS[0].id;
+  let selected = null;
   CROPS.forEach(cr=>{
+    const seedCount = (state.seeds && state.seeds[cr.id]) || 0;
+    const hasSeed = seedCount > 0;
+    if(hasSeed && selected===null) selected = cr.id;
     const div = document.createElement('div');
-    div.className='crop-choice' + (cr.id===selected?' selected':'');
-    div.innerHTML = `<span class="emoji">${cr.emoji}</span>${cr.name}`;
-    div.onclick = ()=>{
-      wrap.querySelectorAll('.crop-choice').forEach(d=>d.classList.remove('selected'));
-      div.classList.add('selected'); selected = cr.id;
-    };
+    div.className='crop-choice' + (hasSeed ? '' : ' disabled');
+    div.innerHTML = `<span class="emoji">${cr.emoji}</span>${cr.name}<span class="seedcount">${seedCount} seed${seedCount===1?'':'s'}</span>`;
+    if(hasSeed){
+      div.onclick = ()=>{
+        wrap.querySelectorAll('.crop-choice').forEach(d=>d.classList.remove('selected'));
+        div.classList.add('selected'); selected = cr.id;
+      };
+    }
     wrap.appendChild(div);
   });
+  if(selected){
+    const firstEnabled = wrap.querySelector('.crop-choice:not(.disabled)');
+    if(firstEnabled) firstEnabled.classList.add('selected');
+  }
+  const note = document.getElementById('plantSeedNote');
+  note.textContent = selected
+    ? "Only crops with seeds in the team's Seed Bank can be planted."
+    : "The team has no seeds at all right now! Send a kudos first to earn one. 💌";
   document.getElementById('plantOverlay')._getSelected = ()=>selected;
+  document.getElementById('plantConfirm').disabled = !selected;
   document.getElementById('plantOverlay').style.display='flex';
 }
 document.getElementById('plantCancel').onclick = ()=> document.getElementById('plantOverlay').style.display='none';
 document.getElementById('plantConfirm').onclick = async ()=>{
   const overlay = document.getElementById('plantOverlay');
   const chosen = overlay._getSelected();
+  if(!chosen){ toast('No seeds available to plant — send a kudos first!'); return; }
   const {r,c} = plantTarget;
   const res = await apiCall('/api/plant', {playerId:myPlayerId, r, c, cropId:chosen});
   overlay.style.display='none';
@@ -1017,6 +1116,16 @@ document.getElementById('plantConfirm').onclick = async ()=>{
 };
 
 /* ============ Kudos Modal ============ */
+function populateKudosSelect(selectEl, excludeName){
+  const current = selectEl.value;
+  selectEl.innerHTML='';
+  state.farmers.forEach(f=>{
+    if(excludeName && f.name===excludeName) return;
+    const o = document.createElement('option'); o.value=f.name; o.textContent=f.name;
+    selectEl.appendChild(o);
+  });
+  if([...selectEl.options].some(o=>o.value===current)) selectEl.value = current;
+}
 function openKudosModal(){
   const fromSel = document.getElementById('kudosFrom');
   const toSel = document.getElementById('kudosTo');
@@ -1025,9 +1134,9 @@ function openKudosModal(){
     const o1 = document.createElement('option'); o1.value=f.name; o1.textContent=f.name;
     if(f.id===myPlayerId) o1.selected=true;
     fromSel.appendChild(o1);
-    const o2 = document.createElement('option'); o2.value=f.name; o2.textContent=f.name;
-    toSel.appendChild(o2);
   });
+  populateKudosSelect(toSel, fromSel.value);
+  fromSel.onchange = ()=> populateKudosSelect(toSel, fromSel.value);
   const wrap = document.getElementById('kudosSentimentChoices');
   wrap.innerHTML='';
   let selected = CROPS[0].id;
@@ -1050,13 +1159,19 @@ document.getElementById('kudosConfirm').onclick = async ()=>{
   const overlay = document.getElementById('kudosOverlay');
   const fromName = document.getElementById('kudosFrom').value;
   const toName = document.getElementById('kudosTo').value;
+  if(fromName === toName){ toast("⚠️ You can't send yourself a kudos — pick a teammate!"); return; }
   const cropId = overlay._getSelected();
   const message = document.getElementById('kudosMessage').value.trim();
   const res = await apiCall('/api/kudos', {fromName, toName, cropId, message});
   overlay.style.display='none';
-  if(res.ok){ toast(`💌 Posted a kudos for ${toName}!`); } else if(res.error){ toast('⚠️ '+res.error); }
+  if(res.ok){
+    const seedInfo = cropInfo(res.seedAwarded);
+    confettiBurst();
+    toast(`💌 Posted a kudos for ${toName}! The team earned ${seedInfo?seedInfo.emoji:'🌱'} a ${seedInfo?seedInfo.name:'seed'}!`);
+  } else if(res.error){ toast('⚠️ '+res.error); }
   renderHUD();
 };
+document.getElementById('btnSendKudosCta').onclick = ()=> openKudosModal();
 
 /* ============ Character Creator (join + edit) ============ */
 let creatorSelection = { skin:SKIN_COLORS[0], hair:HAIR_COLORS[0], shirt:SHIRT_COLORS[0], pants:PANTS_COLORS[0], hat:'none' };
@@ -1257,7 +1372,7 @@ document.getElementById('btnExport').onclick = ()=>{
   if(!state.kudosLog || state.kudosLog.length===0){ toast('No kudos to export yet!'); return; }
   let text = `Team Farm Kudos Wall — ${state.teamName || 'Our Team'}\n`;
   text += `Exported: ${new Date().toLocaleString()}\n`;
-  text += `Total harvests: ${state.totalHarvests} | Total animal products: ${state.totalProducts}\n\n`;
+  text += `Total kudos sent: ${state.totalKudos||0} | Total harvests: ${state.totalHarvests} | Total animal products: ${state.totalProducts}\n\n`;
   state.kudosLog.forEach(k=>{
     const info = cropInfo(k.cropId);
     text += `${info?info.emoji:''} ${k.fromName} → ${k.toName} (${info?info.meaning:''})\n`;
@@ -1272,7 +1387,7 @@ document.getElementById('btnExport').onclick = ()=>{
 
 /* ============ New Season ============ */
 document.getElementById('btnReset').onclick = async ()=>{
-  if(!confirm('Start a brand new season for the whole team? This clears crops, animal happiness, inventory, decorations, and kudos (everyone stays on the farm).')) return;
+  if(!confirm('Start a brand new season for the whole team? This clears crops, seeds, animal happiness, inventory, decorations, and kudos (everyone stays on the farm).')) return;
   const res = await apiCall('/api/reset-season', {});
   if(res.ok) toast('🚜 New season started for everyone!');
   renderHUD();

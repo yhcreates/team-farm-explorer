@@ -7,16 +7,34 @@
    call POST /api/* endpoints to act (move, till, plant, water,
    harvest, feed, kudos, decorate, join).
 
+   ------------------------------------------------------------
+   GAME ECONOMY (kudos-driven):
+     1. Sending a Kudos to a teammate awards the TEAM a random
+        seed (one of 6 crop types) into a shared Seed Bank.
+        This is the only way to get seeds — it directly ties
+        recognizing teammates to being able to grow anything.
+     2. Planting a tilled plot SPENDS one seed of the chosen
+        type from the shared Seed Bank. If the team has none of
+        that type, planting is rejected.
+     3. Harvested crops go into a shared Harvest Basket
+        (the `inventory` object).
+     4. Animals are picky: each only accepts its OWN liked crop
+        (chicken/corn, cow/carrot, sheep/strawberry) — no
+        fallback to other crops. This makes raising animals
+        require deliberately growing the right crop for them.
+     5. Leaderboards (kudos givers / growers / caretakers) keep
+        the team accountable for remembering to recognize each
+        other, not just play the farming minigame.
+   ------------------------------------------------------------
    Design notes:
    - State lives only in memory: it resets if the server restarts
      or (on free hosting tiers) spins down from inactivity. This
      is fine for a single team-social "season" but is NOT durable
      long-term storage.
    - Single shared farm per deployment (no multi-room support).
-     If multiple teams want independent farms, deploy separate
-     instances (or fork this file to add a room code later).
-   - Server re-validates every action so two people acting at
-     the same instant can't corrupt state (e.g. double-harvest).
+   - Server re-validates every action so concurrent actions from
+     different players can't corrupt state (e.g. double-harvest,
+     double-spend a seed).
    ============================================================ */
 
 const http = require('http');
@@ -29,15 +47,15 @@ const PORT = process.env.PORT || 3000;
 const ROWS = 12, COLS = 18;
 const WATER_NEEDED = 4;
 const HAPPY_MAX = 5;
+const FEED_GAIN = 2; // animals now only ever eat their liked crop, so this is fixed
 
 const CROP_IDS = ['sunflower','carrot','strawberry','corn','pumpkin','tomato'];
-const CROP_LIKES_MAP = {}; // crop id -> [] not needed server-side beyond validation
 
 const ANIMALS_DEF = [
-  {id:'chicken1', type:'chicken', r:5, c:11, likes:'corn',       product:'egg'},
-  {id:'chicken2', type:'chicken', r:5, c:14, likes:'corn',       product:'egg'},
-  {id:'cow',      type:'cow',     r:7, c:12, likes:'carrot',     product:'milk'},
-  {id:'sheep',    type:'sheep',   r:7, c:14, likes:'strawberry', product:'wool'}
+  {id:'chicken1', type:'chicken', r:5, c:11, likes:'corn',       product:'egg',  productName:'eggs'},
+  {id:'chicken2', type:'chicken', r:5, c:14, likes:'corn',       product:'egg',  productName:'eggs'},
+  {id:'cow',      type:'cow',     r:7, c:12, likes:'carrot',     product:'milk', productName:'milk'},
+  {id:'sheep',    type:'sheep',   r:7, c:14, likes:'strawberry', product:'wool', productName:'wool'}
 ];
 
 const DECORATION_IDS = {
@@ -77,17 +95,24 @@ function tileAt(r,c){ return GRID[r] && GRID[r][c]; }
 const SPAWN_SPOTS = [[1,5],[1,4],[1,6],[1,7],[2,6]];
 
 /* ============ Shared in-memory state ============ */
+function emptySeedBank(){
+  const bank = {};
+  CROP_IDS.forEach(id=> bank[id]=0);
+  return bank;
+}
 function defaultState(){
   return {
     teamName:'',
     farmers:[],               // {id,name,skin,hair,shirt,pants,hat,r,c}
     crops:{},                 // "r,c" -> {stage,type,water,plantedBy}
     animals: ANIMALS_DEF.map(a=>({...a, happiness:0})),
-    inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0, egg:0, milk:0, wool:0},
+    seeds: emptySeedBank(),           // shared seed bank, earned only via kudos
+    inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0, egg:0, milk:0, wool:0}, // harvested crops + animal products
     kudosLog:[],
     stats:{givers:{}, contributors:{}, caretakers:{}},
     totalHarvests:0,
     totalProducts:0,
+    totalKudos:0,
     decorations:{},
     version:0
   };
@@ -96,8 +121,6 @@ let state = defaultState();
 function bump(){ state.version++; }
 function points(){ return state.totalHarvests + state.totalProducts; }
 
-/* Cap kudos log length so the JSON payload doesn't grow unbounded
-   over a long-running season. */
 const MAX_KUDOS_LOG = 300;
 
 /* ============ Helpers ============ */
@@ -112,11 +135,12 @@ function getOrCreateCell(r,c){
 function findFarmer(id){ return state.farmers.find(f=>f.id===id); }
 function animalById(id){ return state.animals.find(a=>a.id===id); }
 function isValidCoord(r,c){ return Number.isInteger(r) && Number.isInteger(c) && r>=0 && r<ROWS && c>=0 && c<COLS; }
+function randomCropId(){ return CROP_IDS[Math.floor(Math.random()*CROP_IDS.length)]; }
 
 /* ============ API handlers ============ */
 /* Each handler receives the parsed JSON body and returns
-   { ok: bool, error?: string } — the caller always responds
-   with the full current state alongside this result. */
+   { ok: bool, error?: string, ...extra } — the caller always
+   responds with the full current state alongside this result. */
 
 function apiJoin(body){
   const name = (body.name || '').toString().trim().slice(0,40);
@@ -184,6 +208,9 @@ function apiTill(body){
   return {ok:true};
 }
 
+/* Planting now SPENDS a seed of the chosen type from the shared
+   seed bank — seeds only come from sending kudos, so this is the
+   step that ties recognition directly to being able to grow food. */
 function apiPlant(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -192,6 +219,8 @@ function apiPlant(body){
   if(!CROP_IDS.includes(cropId)) return {ok:false, error:'Bad crop.'};
   const cell = getOrCreateCell(r,c);
   if(cell.stage!==1) return {ok:false, error:'Not ready to plant.'};
+  if((state.seeds[cropId]||0) <= 0) return {ok:false, error:'No seeds of that type in the team\'s seed bank — send a kudos to earn one!'};
+  state.seeds[cropId]--;
   cell.type = cropId; cell.stage = 2; cell.water = 0; cell.plantedBy = f.name;
   bump();
   return {ok:true};
@@ -225,17 +254,21 @@ function apiHarvest(body){
   return {ok:true};
 }
 
+/* Animals are picky eaters: they ONLY accept their own liked crop
+   (no fallback to whatever's in the basket). This makes raising
+   each animal require deliberately growing its specific crop. */
 function apiFeed(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
   const animal = animalById(body.animalId);
   if(!animal) return {ok:false, error:'Unknown animal.'};
-  const available = CROP_IDS.filter(k=> (state.inventory[k]||0) > 0);
-  if(available.length===0) return {ok:false, error:'No crops in inventory.'};
-  const chosen = available.includes(animal.likes) ? animal.likes : available[0];
-  state.inventory[chosen]--;
-  const gain = (chosen===animal.likes) ? 2 : 1;
-  animal.happiness = Math.min(HAPPY_MAX, animal.happiness + gain);
+  const likedCrop = animal.likes;
+  if((state.inventory[likedCrop]||0) <= 0){
+    const cropName = likedCrop.charAt(0).toUpperCase()+likedCrop.slice(1);
+    return {ok:false, error:`${capitalize(animal.type)}s only eat ${cropName}! Grow and harvest some first.`};
+  }
+  state.inventory[likedCrop]--;
+  animal.happiness = Math.min(HAPPY_MAX, animal.happiness + FEED_GAIN);
   state.stats.caretakers[f.name] = (state.stats.caretakers[f.name]||0) + 1;
   let produced = null;
   if(animal.happiness >= HAPPY_MAX){
@@ -245,20 +278,28 @@ function apiFeed(body){
     produced = animal.product;
   }
   bump();
-  return {ok:true, fed:chosen, gain, produced};
+  return {ok:true, fed:likedCrop, gain:FEED_GAIN, produced};
 }
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
+/* Sending a kudos is the ONLY source of seeds — awards one random
+   crop type to the shared seed bank. Self-kudos is blocked so
+   people can't farm seeds without actually recognizing a teammate. */
 function apiKudos(body){
   const fromName = (body.fromName||'').toString().trim().slice(0,40);
   const toName = (body.toName||'').toString().trim().slice(0,40);
   const cropId = CROP_IDS.includes(body.cropId) ? body.cropId : CROP_IDS[0];
   const message = (body.message||'').toString().trim().slice(0,500);
   if(!fromName || !toName) return {ok:false, error:'From/To required.'};
+  if(fromName.toLowerCase() === toName.toLowerCase()) return {ok:false, error:"You can't send yourself a kudos — recognize a teammate instead!"};
   state.kudosLog.push({fromName, toName, cropId, message, when:new Date().toLocaleString()});
   if(state.kudosLog.length > MAX_KUDOS_LOG) state.kudosLog.shift();
   state.stats.givers[fromName] = (state.stats.givers[fromName]||0) + 1;
+  state.totalKudos++;
+  const seedAwarded = randomCropId();
+  state.seeds[seedAwarded] = (state.seeds[seedAwarded]||0) + 1;
   bump();
-  return {ok:true};
+  return {ok:true, seedAwarded};
 }
 
 function apiDecorate(body){
