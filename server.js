@@ -1,52 +1,30 @@
 /* ============================================================
    Team Farm Explorer — Multiplayer Server
    ------------------------------------------------------------
-   Zero-dependency Node.js server (built-in `http` module only)
-   that holds one shared farm's state in memory and exposes a
-   small REST API. Clients poll GET /api/state every ~900ms and
-   call POST /api/* endpoints to act (move, till, plant, water,
-   harvest, feed, kudos, decorate, join).
+   Zero-dependency Node.js server (built-in `http`/`fs` modules
+   only) holding one shared farm's state in memory (persisted to
+   a local JSON file so multi-day crop growth survives restarts).
 
-   ------------------------------------------------------------
-   GAME ECONOMY (kudos-driven):
-     1. Sending a Kudos to a teammate awards the TEAM a random
-        seed (one of 6 crop types) into a shared Seed Bank.
-     2. Planting a tilled plot SPENDS one seed of the chosen
-        type from the shared Seed Bank.
-     3. Harvested crops go into a shared Harvest Basket.
-     4. Animals are picky: each only accepts its OWN liked crop.
-     5. Leaderboards keep the team accountable for kudos.
+   GAME ECONOMY:
+     - Sending a kudos awards the team ONE random seed. The
+       "sentiment" picked (why you're recognizing someone) is
+       fully decoupled from the seed reward — sentiments are a
+       tailorable set of tags (default + custom), seeds are pure
+       chance.
+     - Planting spends a seed of the chosen crop type.
+     - Harvesting fills a shared Harvest Basket.
+     - Animals are picky: each only accepts its own liked crop.
 
-   ------------------------------------------------------------
-   GROWTH TIMING (real calendar time, multi-day, max ~1 week):
-     Each crop takes real DAYS to grow — this is a persistent
-     "check in over the week" farm, not a single-sitting game.
-     Durations preserve the same relative order as real-world
-     "days to maturity" horticultural data (fast root veggies
-     quicker, large vine fruit slower), compressed so the
-     slowest crop (pumpkin) tops out at 7 days:
-       Carrot      1.0 day
-       Corn        1.5 days
-       Tomato      2.0 days
-       Sunflower   3.0 days
-       Strawberry  4.5 days
-       Pumpkin     7.0 days
-     Watering is an OPTIONAL booster (not a hard requirement):
-     each watering (up to 3 times) shaves 10% off the remaining
-     grow time (30% max), rewarding attentiveness, but real time
-     always has to pass — nobody can rush a crop to ripeness by
-     clicking.
+   GROWTH TIMING: real calendar days (max ~7 for the slowest crop).
+   Watering is an optional booster (up to 3x, 10% faster each).
 
-   ------------------------------------------------------------
-   PERSISTENCE (required for multi-day growth to survive restarts):
-     Since crops can now take up to a week, the server persists
-     its full state to a local JSON file after every change, and
-     reloads it on startup. This is ESSENTIAL wherever this is
-     hosted: a free-tier host that spins down after 15 minutes of
-     inactivity (and has no persistent disk) will otherwise lose
-     all in-progress crops the first time nobody visits for 15
-     minutes. See README.md for hosting guidance that keeps this
-     data alive for the full week.
+   ANIMALS WANDER: each animal randomly wanders within the pen on
+   its own timer, entirely server-side, so movement is consistent
+   and synced for every connected player.
+
+   FARMER PHOTOS: a farmer's appearance can optionally include a
+   small uploaded photo (resized+compressed client-side to a data
+   URL) that renders on their face in place of the default head.
    ============================================================ */
 
 const http = require('http');
@@ -55,20 +33,33 @@ const path = require('path');
 
 const PORT = process.env.PORT || 3000;
 
-/* ============ Game constants (mirrors client) ============ */
+/* ============ Game constants ============ */
 const ROWS = 12, COLS = 18;
 const HAPPY_MAX = 5;
-
+const MAX_WATER_BOOSTS = 3;
+const REDUCTION_PER_WATER = 0.10;
 const CROP_IDS = ['sunflower','carrot','strawberry','corn','pumpkin','tomato'];
 
-/* ============ Kudos Sentiments ============
-   Sentiments (why you're recognizing someone) are now fully
-   DECOUPLED from crops/seeds. Sending a kudos always awards a
-   uniformly random seed regardless of which sentiment was picked
-   — the sentiment is purely about WHY you're giving recognition,
-   the seed is a random surprise reward for doing so. Teams can
-   also add their own custom sentiment tags (e.g. to match company
-   values), which persist for everyone to reuse afterward. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+const CROP_GROWTH_MS = {
+  carrot:     1.0 * DAY_MS,
+  corn:       1.5 * DAY_MS,
+  tomato:     2.0 * DAY_MS,
+  sunflower:  3.0 * DAY_MS,
+  strawberry: 4.5 * DAY_MS,
+  pumpkin:    7.0 * DAY_MS
+};
+
+const ANIMALS_DEF = [
+  {id:'chicken1', type:'chicken', r:5, c:11, likes:'corn',       product:'egg',  productName:'eggs'},
+  {id:'chicken2', type:'chicken', r:5, c:14, likes:'corn',       product:'egg',  productName:'eggs'},
+  {id:'cow',      type:'cow',     r:7, c:12, likes:'carrot',     product:'milk', productName:'milk'},
+  {id:'sheep',    type:'sheep',   r:7, c:14, likes:'strawberry', product:'wool', productName:'wool'}
+];
+/* Pen interior bounds — animals are only allowed to wander within
+   this rectangle (matches the visual pen fence in buildGrid()). */
+const PEN_BOUNDS = { rMin:4, rMax:8, cMin:10, cMax:15 };
+
 const DEFAULT_SENTIMENTS = [
   {id:'sent_positivity',  emoji:'🌟', label:'Positivity'},
   {id:'sent_growth',      emoji:'🌱', label:'Growth Mindset'},
@@ -81,33 +72,7 @@ const DEFAULT_SENTIMENTS = [
   {id:'sent_problemsolve',emoji:'🧠', label:'Problem Solving'},
   {id:'sent_support',     emoji:'❤️', label:'Support'}
 ];
-const MAX_SENTIMENTS = 40; // generous cap so custom tags can't grow unbounded
-
-/* Grow durations in milliseconds, scaled to real DAYS (max ~1 week
-   for the slowest crop). This object is intentionally mutable —
-   never mutated in production, but a local test harness can shrink
-   these values (preserving ratios) to verify time-gating logic
-   without waiting real days — see the exports at the bottom of
-   this file. */
-const DAY_MS = 24 * 60 * 60 * 1000;
-const CROP_GROWTH_MS = {
-  carrot:     1.0 * DAY_MS,
-  corn:       1.5 * DAY_MS,
-  tomato:     2.0 * DAY_MS,
-  sunflower:  3.0 * DAY_MS,
-  strawberry: 4.5 * DAY_MS,
-  pumpkin:    7.0 * DAY_MS
-};
-
-const REDUCTION_PER_WATER = 0.10; // each watering shaves 10% off the base duration
-const MAX_WATER_BOOSTS = 3;       // capped at 3 waterings (max 30% faster)
-
-const ANIMALS_DEF = [
-  {id:'chicken1', type:'chicken', r:5, c:11, likes:'corn',       product:'egg',  productName:'eggs'},
-  {id:'chicken2', type:'chicken', r:5, c:14, likes:'corn',       product:'egg',  productName:'eggs'},
-  {id:'cow',      type:'cow',     r:7, c:12, likes:'carrot',     product:'milk', productName:'milk'},
-  {id:'sheep',    type:'sheep',   r:7, c:14, likes:'strawberry', product:'wool', productName:'wool'}
-];
+const MAX_SENTIMENTS = 40;
 
 const DECORATION_IDS = {
   flowerpatch:0, rock:0, haybale:8, scarecrow:8,
@@ -117,8 +82,11 @@ const DECORATION_IDS = {
 
 const OBSTACLE_TYPES = new Set(['tree','house','barn','fence','water']);
 
-/* Rebuild the same tile grid used by the client, so the server can
-   validate that a tile is really farmland/grass/kudos before acting. */
+/* A farmer's uploaded photo is a data: URL (client resizes/compresses
+   before sending). Capped generously but firmly so state.json and
+   network payloads stay reasonable for a small team. */
+const MAX_PHOTO_DATA_URL_LENGTH = 120000; // ~90KB of actual image data after base64 overhead
+
 function buildGrid(){
   const g = [];
   for(let r=0;r<ROWS;r++) g.push(new Array(COLS).fill('grass'));
@@ -154,12 +122,12 @@ function emptySeedBank(){
 function defaultState(){
   return {
     teamName:'',
-    farmers:[],               // {id,name,skin,hair,shirt,pants,hat,r,c}
+    farmers:[],               // {id,name,skin,hair,shirt,pants,hat,photo,r,c}
     crops:{},                 // "r,c" -> {stage,type,plantedAt,waterCount,plantedBy}
-    animals: ANIMALS_DEF.map(a=>({...a, happiness:0})),
+    animals: ANIMALS_DEF.map(a=>({...a, happiness:0, nextMoveAt: Date.now()+randomWanderDelay()})),
     seeds: emptySeedBank(),
     inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0, egg:0, milk:0, wool:0},
-    sentiments: DEFAULT_SENTIMENTS.map(s=>({...s})), // team's kudos sentiment tags — default set + any custom ones added later
+    sentiments: DEFAULT_SENTIMENTS.map(s=>({...s})),
     kudosLog:[],
     stats:{givers:{}, contributors:{}, caretakers:{}},
     totalHarvests:0,
@@ -169,53 +137,37 @@ function defaultState(){
     version:0
   };
 }
-/* ============ Persistence ============
-   Since crops now take real days to grow, the server's in-memory
-   state MUST survive process restarts, or a host that spins the
-   server down after a period of inactivity (common on free tiers)
-   would silently wipe out days of progress. We persist the full
-   state to a local JSON file after every mutation, and reload it
-   on startup. This only actually protects the data if the
-   underlying filesystem itself persists across restarts/redeploys
-   — see README.md for hosting guidance (this generally requires a
-   paid host with a persistent disk, or a self-hosted always-on
-   machine; most free tiers wipe local files on every restart). */
-const STATE_FILE = path.join(__dirname, 'farm-state.json');
 
+/* ============ Persistence ============ */
+const STATE_FILE = path.join(__dirname, 'farm-state.json');
 function loadStateFromDisk(){
   try{
     if(fs.existsSync(STATE_FILE)){
       const raw = fs.readFileSync(STATE_FILE, 'utf8');
       const loaded = JSON.parse(raw);
-      // Merge onto a fresh defaultState() so any new fields added in
-      // future versions still get sensible defaults instead of undefined.
-      return Object.assign(defaultState(), loaded);
+      const merged = Object.assign(defaultState(), loaded);
+      // Ensure animals array has wander timers even if loaded from an
+      // older save that predates this field.
+      merged.animals = merged.animals.map(a=> ({ nextMoveAt: Date.now()+randomWanderDelay(), ...a }));
+      return merged;
     }
   }catch(e){
     console.error('Failed to load persisted state, starting fresh:', e.message);
   }
   return defaultState();
 }
-
 let state = loadStateFromDisk();
 let saveScheduled = false;
 function saveStateToDisk(){
   saveScheduled = false;
-  try{
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state));
-  }catch(e){
-    console.error('Failed to persist state to disk:', e.message);
-  }
+  try{ fs.writeFileSync(STATE_FILE, JSON.stringify(state)); }
+  catch(e){ console.error('Failed to persist state to disk:', e.message); }
 }
-/* Debounced so a rapid burst of actions (several players acting in
-   the same second) collapses into a single disk write shortly after,
-   rather than writing synchronously on every single request. */
 function scheduleSave(){
   if(saveScheduled) return;
   saveScheduled = true;
   setTimeout(saveStateToDisk, 250);
 }
-
 function bump(){ state.version++; scheduleSave(); }
 function points(){ return state.totalHarvests + state.totalProducts; }
 
@@ -236,8 +188,6 @@ function isValidCoord(r,c){ return Number.isInteger(r) && Number.isInteger(c) &&
 function randomCropId(){ return CROP_IDS[Math.floor(Math.random()*CROP_IDS.length)]; }
 function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
-/* Growth-timing helpers. Effective duration shrinks by
-   REDUCTION_PER_WATER for each watering, capped at MAX_WATER_BOOSTS. */
 function effectiveDurationMs(cell){
   const base = CROP_GROWTH_MS[cell.type] || 0;
   const boosts = Math.min(cell.waterCount||0, MAX_WATER_BOOSTS);
@@ -246,8 +196,6 @@ function effectiveDurationMs(cell){
 function readyAtMs(cell){ return (cell.plantedAt||0) + effectiveDurationMs(cell); }
 function isReady(cell){ return !!cell.type && Date.now() >= readyAtMs(cell); }
 function remainingMs(cell){ return Math.max(0, readyAtMs(cell) - Date.now()); }
-/* Human-readable remaining-time label for error messages, e.g.
-   "2d 5h", "3h 20m", "12m" — mirrors the client's formatDuration(). */
 function formatRemaining(ms){
   const totalSecs = Math.max(0, Math.ceil(ms/1000));
   const days = Math.floor(totalSecs / 86400);
@@ -260,11 +208,55 @@ function formatRemaining(ms){
   return `${secs}s`;
 }
 
+/* ============ Animal wandering AI ============
+   Each animal independently "decides" to take one step at a
+   random interval (a few seconds to under a minute), moving to a
+   random adjacent tile within the pen bounds. This runs entirely
+   server-side on a fixed tick so movement is authoritative and
+   identical for every connected client (who just render whatever
+   position they're told). Animals won't step onto a tile another
+   animal or a farmer currently occupies. */
+function randomWanderDelay(){
+  return 4000 + Math.random()*8000; // 4-12 seconds between steps, per animal
+}
+function isTileFreeForAnimal(r,c,excludeAnimalId){
+  if(r < PEN_BOUNDS.rMin || r > PEN_BOUNDS.rMax || c < PEN_BOUNDS.cMin || c > PEN_BOUNDS.cMax) return false;
+  if(tileAt(r,c) !== 'pen') return false;
+  if(state.animals.some(a=> a.id!==excludeAnimalId && a.r===r && a.c===c)) return false;
+  if(state.farmers.some(f=> f.r===r && f.c===c)) return false;
+  return true;
+}
+function tickAnimalWander(){
+  const now = Date.now();
+  let moved = false;
+  state.animals.forEach(a=>{
+    if(now < (a.nextMoveAt||0)) return;
+    a.nextMoveAt = now + randomWanderDelay();
+    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+    // shuffle so the chosen direction isn't biased toward the first checked
+    for(let i=dirs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [dirs[i],dirs[j]]=[dirs[j],dirs[i]]; }
+    for(const [dr,dc] of dirs){
+      const nr=a.r+dr, nc=a.c+dc;
+      if(isTileFreeForAnimal(nr,nc,a.id)){
+        a.r = nr; a.c = nc;
+        moved = true;
+        break;
+      }
+      // occasionally "stay put" even if a move is available, so it doesn't
+      // look like every animal moves in lockstep every single tick
+      if(Math.random() < 0.3) break;
+    }
+  });
+  if(moved) bump();
+}
+setInterval(tickAnimalWander, 1000);
+
 /* ============ API handlers ============ */
 function apiJoin(body){
   const name = (body.name || '').toString().trim().slice(0,40);
   if(!name) return {ok:false, error:'Name is required.'};
   const spawn = SPAWN_SPOTS[state.farmers.length % SPAWN_SPOTS.length];
+  const photo = validatePhoto(body.photo);
   const farmer = {
     id: uid(),
     name,
@@ -273,12 +265,24 @@ function apiJoin(body){
     shirt: (body.shirt||'#54a0ff').toString().slice(0,20),
     pants: (body.pants||'#3b3b58').toString().slice(0,20),
     hat: (body.hat||'none').toString().slice(0,20),
+    photo: photo, // null or a data: URL
     r: spawn[0], c: spawn[1]
   };
   if(body.teamName && !state.teamName) state.teamName = body.teamName.toString().slice(0,60);
   state.farmers.push(farmer);
   bump();
   return {ok:true, playerId:farmer.id};
+}
+
+/* Only accepts a plausible small image data: URL; rejects anything
+   too large or malformed rather than silently truncating it (which
+   would corrupt the image). */
+function validatePhoto(photo){
+  if(!photo) return null;
+  const str = photo.toString();
+  if(!str.startsWith('data:image/')) return null;
+  if(str.length > MAX_PHOTO_DATA_URL_LENGTH) return null;
+  return str;
 }
 
 function apiUpdateAppearance(body){
@@ -290,6 +294,15 @@ function apiUpdateAppearance(body){
   if(body.shirt) f.shirt = body.shirt.toString().slice(0,20);
   if(body.pants) f.pants = body.pants.toString().slice(0,20);
   if(body.hat) f.hat = body.hat.toString().slice(0,20);
+  if(body.hasOwnProperty('photo')){
+    if(body.photo === null || body.photo === ''){
+      f.photo = null; // explicit removal
+    } else {
+      const validated = validatePhoto(body.photo);
+      if(body.photo && !validated) return {ok:false, error:'Photo is too large or invalid — please try a smaller image.'};
+      f.photo = validated;
+    }
+  }
   bump();
   return {ok:true};
 }
@@ -327,8 +340,6 @@ function apiTill(body){
   return {ok:true};
 }
 
-/* Planting SPENDS a seed of the chosen type from the shared seed
-   bank, and starts the real-time growth clock for this plot. */
 function apiPlant(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -344,9 +355,6 @@ function apiPlant(body){
   return {ok:true};
 }
 
-/* Watering is an optional booster: reduces effective grow time by
-   REDUCTION_PER_WATER, up to MAX_WATER_BOOSTS times. It can no
-   longer instantly finish a crop — real time always has to pass. */
 function apiWater(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -368,9 +376,7 @@ function apiHarvest(body){
   if(!isValidCoord(r,c)) return {ok:false, error:'Bad coordinates.'};
   const cell = getOrCreateCell(r,c);
   if(cell.stage!==2 || !cell.type) return {ok:false, error:'Nothing to harvest.'};
-  if(!isReady(cell)){
-    return {ok:false, error:`Still growing — ${formatRemaining(remainingMs(cell))} left!`};
-  }
+  if(!isReady(cell)) return {ok:false, error:`Still growing — ${formatRemaining(remainingMs(cell))} left!`};
   state.inventory[cell.type] = (state.inventory[cell.type]||0) + 1;
   state.totalHarvests++;
   state.stats.contributors[f.name] = (state.stats.contributors[f.name]||0) + 1;
@@ -379,7 +385,6 @@ function apiHarvest(body){
   return {ok:true};
 }
 
-/* Animals are picky eaters: they ONLY accept their own liked crop. */
 function apiFeed(body){
   const f = findFarmer(body.playerId);
   if(!f) return {ok:false, error:'Unknown player.'};
@@ -387,8 +392,7 @@ function apiFeed(body){
   if(!animal) return {ok:false, error:'Unknown animal.'};
   const likedCrop = animal.likes;
   if((state.inventory[likedCrop]||0) <= 0){
-    const cropName = capitalize(likedCrop);
-    return {ok:false, error:`${capitalize(animal.type)}s only eat ${cropName}! Grow and harvest some first.`};
+    return {ok:false, error:`${capitalize(animal.type)}s only eat ${capitalize(likedCrop)}! Grow and harvest some first.`};
   }
   state.inventory[likedCrop]--;
   const FEED_GAIN = 2;
@@ -405,11 +409,6 @@ function apiFeed(body){
   return {ok:true, fed:likedCrop, gain:FEED_GAIN, produced};
 }
 
-/* Adds a new custom kudos sentiment tag (e.g. to match a company's
-   values), or returns the existing one if an equivalent label
-   already exists (case-insensitive match) — this prevents teams
-   from accidentally creating near-duplicate tags. Persists so the
-   whole team can reuse it going forward. */
 function apiAddSentiment(body){
   const label = (body.label||'').toString().trim().slice(0,40);
   if(!label) return {ok:false, error:'Sentiment name is required.'};
@@ -423,13 +422,6 @@ function apiAddSentiment(body){
   return {ok:true, sentimentId:id, reused:false};
 }
 
-/* Sending a kudos is the ONLY source of seeds. Self-kudos blocked.
-   The sentiment picked (why you're recognizing someone) is stored
-   as a snapshot (emoji+label at time of sending) so the kudos wall
-   stays accurate even if a sentiment is edited/removed later. The
-   seed awarded is ALWAYS uniformly random and fully independent of
-   the sentiment chosen — recognition and reward are decoupled by
-   design. */
 function apiKudos(body){
   const fromName = (body.fromName||'').toString().trim().slice(0,40);
   const toName = (body.toName||'').toString().trim().slice(0,40);
@@ -446,7 +438,6 @@ function apiKudos(body){
   if(state.kudosLog.length > MAX_KUDOS_LOG) state.kudosLog.shift();
   state.stats.givers[fromName] = (state.stats.givers[fromName]||0) + 1;
   state.totalKudos++;
-  // The random seed reward is intentionally decoupled from the sentiment above.
   const seedAwarded = randomCropId();
   state.seeds[seedAwarded] = (state.seeds[seedAwarded]||0) + 1;
   bump();
@@ -480,7 +471,7 @@ function apiRemoveDecor(body){
 function apiResetSeason(){
   const keepFarmers = state.farmers;
   const keepTeamName = state.teamName;
-  const keepSentiments = state.sentiments; // the team's kudos vocabulary carries over between seasons
+  const keepSentiments = state.sentiments;
   state = defaultState();
   state.farmers = keepFarmers;
   state.teamName = keepTeamName;
@@ -519,10 +510,9 @@ function sendJSON(res, statusCode, obj){
   });
   res.end(body);
 }
-
 function readBody(req, cb){
   let data = '';
-  req.on('data', chunk=>{ data += chunk; if(data.length > 1e6) req.destroy(); });
+  req.on('data', chunk=>{ data += chunk; if(data.length > 3e6) req.destroy(); }); // allow up to ~3MB body (photo data URLs)
   req.on('end', ()=>{
     if(!data){ cb({}); return; }
     try{ cb(JSON.parse(data)); } catch(e){ cb({}); }
@@ -537,7 +527,6 @@ const server = http.createServer((req,res)=>{
     sendJSON(res, 200, {ok:true, state});
     return;
   }
-
   if(req.method==='POST' && ROUTES[pathname]){
     readBody(req, body=>{
       const result = ROUTES[pathname](body);
@@ -545,7 +534,6 @@ const server = http.createServer((req,res)=>{
     });
     return;
   }
-
   if(req.method==='GET'){
     let filePath = pathname==='/' ? '/index.html' : pathname;
     filePath = path.join(PUBLIC_DIR, filePath);
@@ -558,7 +546,6 @@ const server = http.createServer((req,res)=>{
     });
     return;
   }
-
   res.writeHead(404); res.end('Not found');
 });
 
@@ -567,8 +554,6 @@ server.listen(PORT, ()=>{
   console.log(`Persisting state to: ${STATE_FILE}`);
 });
 
-/* Flush any pending debounced save immediately on graceful shutdown,
-   so a deploy/restart doesn't lose the last few seconds of actions. */
 function flushAndExit(){
   if(saveScheduled) saveStateToDisk();
   process.exit(0);
@@ -576,9 +561,4 @@ function flushAndExit(){
 process.on('SIGINT', flushAndExit);
 process.on('SIGTERM', flushAndExit);
 
-/* Exported for local testing only: CROP_GROWTH_MS is intentionally
-   mutable so a test harness can shrink grow durations (e.g. to a
-   couple of seconds) to verify time-gating logic without waiting
-   real days. Never mutated in production. STATE_FILE is exported
-   so tests can clean up the persisted file between runs. */
-module.exports = { server, CROP_GROWTH_MS, MAX_WATER_BOOSTS, REDUCTION_PER_WATER, CROP_IDS, STATE_FILE, saveStateToDisk };
+module.exports = { server, CROP_GROWTH_MS, MAX_WATER_BOOSTS, REDUCTION_PER_WATER, CROP_IDS, STATE_FILE, saveStateToDisk, PEN_BOUNDS, tickAnimalWander, MAX_PHOTO_DATA_URL_LENGTH };

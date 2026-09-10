@@ -1,83 +1,57 @@
-# 🌾 Team Farm Explorer — Real-Time Multiplayer (Kudos Economy + Multi-Day Growth)
+# 🌾 Team Farm Explorer — Real-Time Multiplayer
 
 A live, shared farm for team bonding. Recognize a teammate → the team earns a
-seed → grow it → feed the animals — and now, crops grow over real **days**
-(not minutes), so this plays out as an ongoing "check in throughout the
-week" activity rather than something you finish in one sitting.
+seed → grow it (over real days) → feed the animals — with farmers you can
+customize (including uploading your own photo!), wandering animals, and a
+clear shared farm name for everyone.
 
 ---
 
-## 🌱 The kudos economy
+## 🆕 What's in this update
 
-1. **Seeds only come from sending kudos.** Recognize a teammate on the Kudos
-   Board and the *team* earns one **completely random** seed into a shared
-   Seed Bank.
-2. **Sentiment ≠ seed.** When you send a kudos, you pick a *sentiment* — why
-   you're recognizing them (Teamwork, Creativity, Positivity, etc.). This is
-   entirely decoupled from the seed you earn: the sentiment communicates the
-   "why," the seed is a random surprise reward for doing so. They're
-   intentionally unrelated.
-3. **Tailor your own sentiments.** The default set (Positivity, Growth
-   Mindset, Fun & Joy, Teamwork, Creativity, Great Work, Above & Beyond,
-   Reliability, Problem Solving, Support) is just a starting point — anyone
-   can click **"+ Add a new sentiment tag"** in the Kudos modal to create a
-   custom one (e.g. to match your company's specific values). It's saved for
-   the whole team to reuse afterward, and survives "New Season" resets since
-   it's part of your team's shared vocabulary, not per-season game state.
-4. **Planting spends a seed** — you can only plant crop types the team has
-   seeds banked for.
-5. **Harvesting fills a shared Harvest Basket.**
-6. **Animals are picky eaters** — chickens ONLY eat corn 🌽, cows ONLY eat
-   carrots 🥕, sheep ONLY eat strawberries 🍓. No substitutes.
-7. **Leaderboards** track Top Kudos Givers alongside Master Growers and Best
+1. **Farm name now shows in the header and browser tab title** once someone
+   sets it — no more wondering if you're really on the same farm as everyone
+   else.
+2. **"My Farmer" modal has a proper close (✕) button** in the top-right
+   corner, so you can back out without editing your look or leaving the farm.
+3. **Upload a photo for your farmer's face!** In the character creator, click
+   **"📷 Upload Photo"** to use a headshot instead of the default face. It's
+   automatically resized/compressed client-side to a small square before
+   being sent, and shows up for everyone on the shared farm. Remove it
+   anytime with the "✕ Remove Photo" button.
+4. **Custom farm-themed cursor** — hovering over anything walkable/
+   interactive on the farm now shows a small hoe icon instead of the generic
+   browser pointer.
+5. **Animals wander on their own!** Chickens, the cow, and the sheep now
+   randomly roam within their pen every few seconds, entirely server-side,
+   so everyone sees the same movement — the pen actually feels alive.
+
+---
+
+## 🌱 The kudos economy (recap)
+
+1. **Seeds only come from sending kudos** — recognizing a teammate earns the
+   team one completely random seed.
+2. **Sentiment ≠ seed.** The sentiment you pick (why you're recognizing
+   someone) is fully decoupled from the random seed reward. Tailor your own
+   sentiment tags anytime via "+ Add a new sentiment tag."
+3. **Planting spends a seed**, **harvesting fills a shared basket**, and
+   **animals are picky eaters** (each only accepts its own liked crop).
+4. **Leaderboards** track Top Kudos Givers, Master Growers, and Best
    Caretakers.
 
-## ⏱️ Growth timing — now measured in days (max ~1 week)
+## ⏱️ Growth timing (recap)
 
-| Crop | Grow time |
-|---|---|
-| 🥕 Carrot | **1 day** |
-| 🌽 Corn | **1.5 days** |
-| 🍅 Tomato | **2 days** |
-| 🌻 Sunflower | **3 days** |
-| 🍓 Strawberry | **4.5 days** |
-| 🎃 Pumpkin | **7 days** (the max) |
+Crops grow over real calendar days (🥕 Carrot 1 day → 🎃 Pumpkin 7 days, the
+max). Watering is an optional booster (up to 30% faster), but real time
+always has to pass.
 
-These preserve the same relative order as real-world "days to maturity" for
-each crop (fast root vegetables quicker, large vine fruit slower), compressed
-so the slowest crop tops out at one week. **Watering is optional** — each
-watering (up to 3 per plot) shaves 10% off the remaining time (30% max), but
-real days always have to pass; nobody can rush a crop by clicking.
+## ⚠️ Persistence still matters
 
-## ⚠️ IMPORTANT: this requires the server to keep running (read this before deploying)
-
-Because crops can now take up to 7 real days to grow, **the server's saved
-state must survive that entire week** — including any restarts. I've built
-in file-based persistence (the server writes its state to a local file after
-every action and reloads it on startup), but **this only actually protects
-your data if wherever you host it keeps that file around**:
-
-- **Render's free tier will NOT work reliably for this.** Free services spin
-  down after 15 minutes of no visitors, and — critically — free tier has
-  **no persistent disk option at all**, so every spin-down wipes the
-  server's local files, including all growing crops, seeds, and kudos.
-  Since nobody is likely to visit every 15 minutes for a full week, this
-  will very likely lose progress.
-- **Your options to make multi-day growth actually work:**
-  1. **Upgrade to Render's paid "Starter" plan (~$7/month)** *and* attach a
-     small persistent disk (~$0.25/GB/month, 1GB is plenty). The paid plan
-     removes the 15-minute spin-down, and the disk survives restarts/redeploys.
-     In Render, add this from your service's **Disks** page — just make sure
-     the disk's mount path matches where this app is deployed (see Render's
-     disk docs for the mount path for Node apps), or simplest: mount it at
-     `/var/data` and I can adjust `STATE_FILE` in `server.js` to write there.
-  2. **Self-host on an always-on machine** (an internal office server, a
-     spare always-on computer, etc.). As long as the machine and the
-     `farm-state.json` file next to `server.js` aren't deleted, growth
-     continues correctly across any restarts — no special configuration
-     needed, this is the simplest option if you have access to one.
-- If you go with option 1 or 2, no other changes are needed — the
-  persistence logic is already built in and tested.
+Because growth can take up to a week, the server persists its state to a
+local `farm-state.json` file after every action. **This only protects your
+data if wherever you host it keeps that file around** — see the hosting
+guidance below (free tiers with no persistent disk will lose progress).
 
 ---
 
@@ -85,11 +59,10 @@ your data if wherever you host it keeps that file around**:
 
 ```
 team-farm-explorer/
-├── server.js         # The multiplayer server (holds + persists shared farm state)
+├── server.js         # Multiplayer server (state, economy, growth, animal AI, persistence)
 ├── package.json
 ├── public/
-│   └── index.html    # The game client
-├── farm-state.json    # Auto-created by the server the first time it runs — this is where all progress is saved
+│   └── index.html    # Game client (rendering, photo upload, character creator, UI)
 └── README.md
 ```
 
@@ -104,31 +77,30 @@ Zero external dependencies — only Node's built-in `http` and `fs` modules.
    `package.json`, `README.md`, and the `public` folder (same-named files
    overwrite automatically).
 3. Commit — your host auto-redeploys.
-4. **If you're still on Render's free tier**, read the warning above first —
-   consider upgrading before relying on multi-day crops, or your team's
-   progress may vanish between check-ins.
 
-## 🚀 First-time deploy
+## 🚀 First-time deploy (recommended: Render Starter + persistent disk)
 
-**Recommended: Render Starter plan + persistent disk (~$7.25/month total)**
+Free tiers spin down after 15 minutes idle and have no persistent disk —
+since crops now take real days to grow, this will likely lose progress. For
+reliable multi-day growth:
+
 1. Create a GitHub repo and upload these files.
 2. Sign up at [render.com](https://render.com).
 3. **New +** → **Web Service** → connect your repo.
    - **Build Command:** `npm install`
    - **Start Command:** `npm start`
-   - **Instance Type:** Starter (or higher) — NOT Free
-4. After creating the service, go to its **Disks** page, add a small disk
-   (1GB is plenty), and set its mount path per Render's Node.js guidance.
+   - **Instance Type:** Starter (or higher) — not Free
+4. Add a small persistent disk (~1GB) from the service's **Disks** page so
+   `farm-state.json` survives restarts/redeploys.
 5. Share the live URL with your team.
 
-**Alternative: self-host on an always-on internal machine**
+**Alternative:** self-host on an always-on internal machine — no special
+config needed, just keep the folder and process running.
+
 ```bash
 npm install    # no-op (no dependencies), but harmless
 npm start
 ```
-Listens on port `3000` by default (`PORT` env var to change it). As long as
-the machine stays on and the folder isn't deleted, growth persists correctly
-across any restarts of the app itself.
 
 ---
 
@@ -137,7 +109,5 @@ across any restarts of the app itself.
 - **Single shared farm per deployment.**
 - **Casual-scale** — built for a team of roughly 2–30 people, not a
   large-scale production service.
-- If you truly can't avoid a spin-down-prone free host, consider shortening
-  the grow durations in `CROP_GROWTH_MS` (both in `server.js` and
-  `public/index.html` — keep them identical) to something under 15 minutes
-  so a single sitting reliably survives without a restart.
+- **Photos are stored as compressed data URLs** in the shared state file —
+  fine for a small team's headshots, but not meant for hundreds of users.

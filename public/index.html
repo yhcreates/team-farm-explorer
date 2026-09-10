@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Team Farm Explorer — Multiplayer 🌾</title>
+<title id="pageTitle">Team Farm Explorer — Multiplayer 🌾</title>
 <style>
   :root{
     --sky-top:#aee6ff; --sky-bot:#eaffd8;
@@ -21,6 +21,10 @@
   header{ text-align:center; padding:20px 16px 6px; }
   header h1{ margin:0; font-size:2rem; text-shadow:0 2px 0 rgba(255,255,255,0.6); }
   header p{ margin:4px 0 0; color:#446; font-size:0.92rem; }
+  #farmNameDisplay{
+    margin:6px 0 0; font-size:1.05rem; font-weight:700; color:#5a3a1a;
+    display:none;
+  }
 
   .conn-badge{
     display:inline-flex; align-items:center; gap:6px; font-size:0.75rem; font-weight:700;
@@ -66,7 +70,6 @@
   .kudos-cta .msg{ font-size:0.88rem; font-weight:600; color:#7a3b1a; }
   .kudos-cta .msg span{ font-weight:800; }
 
-  /* Two-column layout: game on the left, kudos wall + leaderboards sidebar on the right */
   .layout-grid{
     display:grid; grid-template-columns:1fr 350px; gap:20px; align-items:start; margin-top:16px;
   }
@@ -80,7 +83,10 @@
   #gameCanvas{
     background:#8fd17c; border:10px solid #7a5230; border-radius:14px;
     box-shadow:var(--shadow); image-rendering:pixelated; max-width:100%; height:auto;
-    cursor:pointer;
+    /* Custom farm-themed cursors: a small hoe for normal/interactive hover,
+       browser's built-in "not-allowed" for blocked tiles (kept native since
+       it communicates "blocked" more universally than any custom icon). */
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(45 16 16)"><rect x="14" y="4" width="4" height="20" rx="1.5" fill="%236b4226" stroke="%233b2412" stroke-width="1"/><path d="M8 4 L24 4 L22 10 L10 10 Z" fill="%23b0b0b0" stroke="%23707070" stroke-width="1"/></g></svg>') 8 8, auto;
   }
   .controls-hint{ text-align:center; font-size:0.82rem; color:#446; margin-top:8px; }
 
@@ -145,13 +151,19 @@
   .overlay{ position:fixed; inset:0; background:rgba(20,30,20,0.55); display:flex; align-items:center;
     justify-content:center; z-index:50; padding:16px; }
   .modal{ background:#fff; border-radius:18px; max-width:480px; width:100%; padding:22px;
-    box-shadow:0 20px 50px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto; }
+    box-shadow:0 20px 50px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto; position:relative; }
   .modal h2{ margin-top:0; }
   .modal label{ display:block; font-size:0.85rem; font-weight:600; margin:12px 0 4px; }
   .modal input[type=text], .modal select, .modal textarea{
     width:100%; padding:8px 10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; font-size:0.9rem; }
   .modal textarea{ resize:vertical; min-height:56px; }
   .modal-actions{ margin-top:18px; display:flex; gap:10px; justify-content:flex-end; }
+  .modal-close-x{
+    position:absolute; top:14px; right:14px; background:#f1f1f1; color:#555; border-radius:50%;
+    width:30px; height:30px; padding:0; font-size:1rem; line-height:1; box-shadow:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close-x:hover{ background:#e2e2e2; }
 
   .swatch-row{ display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
   .swatch{ width:30px; height:30px; border-radius:50%; cursor:pointer; border:3px solid transparent; }
@@ -166,6 +178,12 @@
   .creator-fields{ flex:1; min-width:220px; }
   .creator-preview{ text-align:center; }
   #creatorPreviewCanvas{ background:#dff5d0; border-radius:12px; border:2px solid #ddd; }
+
+  .photo-upload-row{ display:flex; align-items:center; gap:10px; margin-top:6px; flex-wrap:wrap; }
+  .photo-upload-row input[type=file]{ display:none; }
+  .photo-upload-btn{ background:#e8f0e0; color:#357a45; }
+  .photo-remove-btn{ background:#ffe8e8; color:#a12727; font-size:0.76rem; padding:6px 10px; }
+  .photo-hint{ font-size:0.72rem; color:#888; margin-top:4px; }
 
   .crop-choices{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px; }
   .crop-choice{ border:2px solid transparent; border-radius:10px; padding:8px 4px; text-align:center; cursor:pointer;
@@ -198,6 +216,7 @@
 <header>
   <h1>🌾 Team Farm Explorer</h1>
   <p>Recognize a teammate, earn a seed, grow it together, and feed the farm — live, in real time.</p>
+  <p id="farmNameDisplay"></p>
   <div class="conn-badge offline" id="connBadge"><span class="conn-dot"></span><span id="connText">Connecting…</span></div>
 </header>
 
@@ -288,6 +307,13 @@
         <input type="text" id="creatorFarmName" placeholder="e.g. Strategic Programs Farm Crew">
         <label>Your Name</label>
         <input type="text" id="creatorNameInput" placeholder="e.g. Amy">
+        <label>Your Photo (optional)</label>
+        <div class="photo-upload-row">
+          <input type="file" id="photoFileInput" accept="image/*">
+          <button class="btn-secondary photo-upload-btn" id="photoUploadBtn">📷 Upload Photo</button>
+          <button class="btn-secondary photo-remove-btn" id="photoRemoveBtn" style="display:none;">✕ Remove Photo</button>
+        </div>
+        <p class="photo-hint">Your photo will show on your farmer's face instead of the default look. It's resized small automatically.</p>
         <label>Skin Tone</label>
         <div class="swatch-row" id="skinSwatches"></div>
         <label>Hair Color</label>
@@ -356,16 +382,15 @@
     <h2>❓ How to Play</h2>
     <ol style="font-size:0.9rem; line-height:1.6;">
       <li>This farm is <b>live and shared</b> — everyone who opens this page joins the same farm and sees each other in real time.</li>
-      <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one <b>completely random</b> seed into the shared Seed Bank. Pick a sentiment that describes WHY you're recognizing them (Teamwork, Creativity, or your own custom tag) — the sentiment has no effect on which seed you get, it's purely about the recognition itself.</li>
-      <li>Don't see a sentiment that fits? Click <b>"+ Add a new sentiment tag"</b> in the Kudos modal to create your own (e.g. matching your team's values) — it's saved for everyone to reuse afterward.</li>
+      <li><b>Seeds only come from sending kudos! 💌</b> Recognize a teammate on the Kudos Board and the team earns one <b>completely random</b> seed. Pick a sentiment describing WHY you're recognizing them — it has no effect on which seed you get. Click <b>"+ Add a new sentiment tag"</b> to create your own custom ones for the whole team to reuse.</li>
       <li><b>Till</b> a soil plot, then <b>Plant</b> — but you can only plant crop types the team has seeds for.</li>
-      <li><b>Crops grow over real calendar days</b> — this is a "check in throughout the week" farm, not a one-sitting game. Each crop takes a different number of days, loosely matching how long it actually takes to grow in real life: 🥕 Carrot ~1 day, 🌽 Corn ~1.5 days, 🍅 Tomato ~2 days, 🌻 Sunflower ~3 days, 🍓 Strawberry ~4.5 days, 🎃 Pumpkin ~7 days (the max). <b>Watering is optional</b> and speeds things up a little (up to 3 waters, each shaving off some time) — but nobody can rush a crop to ripeness by clicking, real days always have to pass. Come back and check on your plots over the week!</li>
-      <li><b>Harvest</b> once it's ready into the shared Harvest Basket.</li>
-      <li><b>Animals are picky eaters</b> — chickens ONLY eat corn 🌽, cows ONLY eat carrots 🥕, sheep ONLY eat strawberries 🍓. No substitutes!</li>
+      <li><b>Crops grow over real calendar days</b> (up to a week for the slowest). <b>Watering is optional</b> and speeds things up a little, but real days always have to pass.</li>
+      <li><b>Harvest</b> once ready into the shared Harvest Basket.</li>
+      <li><b>Animals are picky eaters</b> — chickens ONLY eat corn 🌽, cows ONLY eat carrots 🥕, sheep ONLY eat strawberries 🍓. They also wander around the pen on their own!</li>
       <li>Keep animals happy and they'll reward the team with eggs 🥚, milk 🥛, and wool 🧶.</li>
-      <li>Check the <b>leaderboards</b> — Top Kudos Givers keeps everyone accountable for remembering to recognize the team, not just farming!</li>
-      <li>Open <b>🏗️ Build</b> to spend the team's harvest points on farm decorations that unlock as everyone plays.</li>
-      <li>Use <b>🎨 My Farmer</b> to change your own name or look anytime.</li>
+      <li>Check the <b>leaderboards</b> — Top Kudos Givers keeps everyone accountable for remembering to recognize the team.</li>
+      <li>Open <b>🏗️ Build</b> to spend the team's harvest points on farm decorations.</li>
+      <li>Use <b>🎨 My Farmer</b> to change your name, look, or upload a photo anytime.</li>
     </ol>
     <div class="modal-actions"><button class="btn-primary" id="howClose">Got it!</button></div>
   </div>
@@ -374,6 +399,7 @@
 <!-- My Farmer Modal -->
 <div class="overlay" id="myFarmerOverlay" style="display:none;">
   <div class="modal">
+    <button class="modal-close-x" id="myFarmerCloseX" title="Back to farm">✕</button>
     <h2>🎨 My Farmer</h2>
     <p style="font-size:0.85rem;color:#555;">Everyone currently on the farm:</p>
     <div class="roster-list" id="rosterList"></div>
@@ -406,14 +432,15 @@
 /* ============================================================
    Team Farm Explorer — Multiplayer Client
    ------------------------------------------------------------
-   Mirrors server.js's economy + growth-timing rules for instant
-   client-side UX (countdowns, button gating), but the server is
-   always the source of truth — every action is re-validated there.
+   Mirrors server.js's economy + growth-timing + animal-wander
+   rules for instant client-side UX, but the server is always the
+   authoritative source of truth — every action is re-validated
+   there.
    ============================================================ */
 
 /* ============ Constants (must match server) ============ */
 const TILE = 52, COLS = 18, ROWS = 12;
-const BASE_TILE = 42; // original reference size the farmer sprite was designed at
+const BASE_TILE = 42;
 const CHAR_SCALE = TILE / BASE_TILE;
 const HAPPY_MAX = 5;
 const MOVE_STEP = 0.18;
@@ -421,11 +448,16 @@ const POLL_INTERVAL_MS = 900;
 const REMOTE_LERP = 0.22;
 const MAX_WATER_BOOSTS = 3;
 const REDUCTION_PER_WATER = 0.10;
-const KUDOS_REMINDER_MS = 5 * 60 * 1000; // gentle nudge if no kudos sent in 5 min
+const KUDOS_REMINDER_MS = 5 * 60 * 1000;
+const MAX_PHOTO_DATA_URL_LENGTH = 120000;
 
-/* Grow durations mirrored from server.js — see that file's header
-   comment for the real-world "days to maturity" this is based on.
-   Now scaled to real DAYS (max ~1 week for the slowest crop). */
+/* Custom farm-themed cursor (a small hoe), used for anything
+   walkable/interactive. Kept as a shared constant so both the
+   stylesheet default and JS hover-state updates use the exact
+   same icon (JS must set it via inline style to override the
+   'not-allowed' state, so it needs the identical string). */
+const FARM_CURSOR = "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22><g transform=%22rotate(45 16 16)%22><rect x=%2214%22 y=%224%22 width=%224%22 height=%2220%22 rx=%221.5%22 fill=%22%236b4226%22 stroke=%22%233b2412%22 stroke-width=%221%22/><path d=%22M8 4 L24 4 L22 10 L10 10 Z%22 fill=%22%23b0b0b0%22 stroke=%22%23707070%22 stroke-width=%221%22/></g></svg>') 8 8, auto";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CROP_GROWTH_MS = {
   carrot:     1.0 * DAY_MS,
@@ -446,9 +478,6 @@ const CROPS = [
 ];
 function cropEmoji(id){ const c = CROPS.find(x=>x.id===id); return c ? c.emoji : '❓'; }
 function cropInfo(id){ return CROPS.find(x=>x.id===id); }
-/* Formats a duration for multi-day grow times: shows the two most
-   relevant units (e.g. "2d 5h", "5h 30m", "12m", "0:45") so it stays
-   readable whether a crop has days, hours, or just minutes left. */
 function formatDuration(ms){
   const totalSecs = Math.max(0, Math.ceil(ms/1000));
   const days = Math.floor(totalSecs / 86400);
@@ -460,7 +489,6 @@ function formatDuration(ms){
   if(mins > 0) return `${mins}m`;
   return `${secs}s`;
 }
-/* Short label for the Plant menu / How-to-Play text, e.g. "1 day", "7 days". */
 function formatDurationLong(ms){
   const days = ms / DAY_MS;
   if(days === 1) return '1 day';
@@ -544,13 +572,13 @@ function isReady(cell){ return !!cell.type && Date.now() >= readyAtMs(cell); }
 function remainingMsFor(cell){ return Math.max(0, readyAtMs(cell) - Date.now()); }
 
 /* ============ Networking ============ */
-const PLAYER_ID_KEY = 'teamFarmPlayerId_v3';
+const PLAYER_ID_KEY = 'teamFarmPlayerId_v4';
 let myPlayerId = null;
 let state = {
   teamName:'', farmers:[], crops:{}, animals:[],
   seeds:{sunflower:0,carrot:0,strawberry:0,corn:0,pumpkin:0,tomato:0},
   inventory:{carrot:0,corn:0,strawberry:0,pumpkin:0,tomato:0,sunflower:0,egg:0,milk:0,wool:0},
-  kudosLog:[], stats:{givers:{},contributors:{},caretakers:{}},
+  sentiments:[], kudosLog:[], stats:{givers:{},contributors:{},caretakers:{}},
   totalHarvests:0, totalProducts:0, totalKudos:0, decorations:{}
 };
 let isConnected = false;
@@ -592,12 +620,31 @@ function animalAt(r,c){ return state.animals.find(a=>a.r===r && a.c===c); }
 
 /* ============ Player runtime ============ */
 let player = { r:1, c:5, facing:'down', pixelX:5*TILE, pixelY:1*TILE, fromX:5*TILE, fromY:1*TILE, toX:5*TILE, toY:1*TILE, animProgress:1, path:[], onArrive:null };
-let remoteVisual = {};
+let remoteVisual = {};   // other farmers' smoothed pixel positions
+let animalVisual = {};   // animals' smoothed pixel positions (they wander server-side)
 
 /* ============ Build Mode state ============ */
 let placementModeActive = false;
 let placementDecorationId = null;
 let hoverTile = { r:-1, c:-1 };
+
+/* ============ Farmer photo image cache ============
+   Farmer photos arrive as data: URLs in state. Canvas drawImage
+   needs a loaded Image object, so we cache one per farmer id and
+   only redraw with the photo once it's actually finished loading
+   (falls back to the default face in the meantime). */
+const photoImageCache = {};
+function getPhotoImage(farmer){
+  if(!farmer || !farmer.photo) return null;
+  let entry = photoImageCache[farmer.id];
+  if(!entry || entry.src !== farmer.photo){
+    const img = new Image();
+    img.src = farmer.photo;
+    entry = { src: farmer.photo, img };
+    photoImageCache[farmer.id] = entry;
+  }
+  return (entry.img.complete && (entry.img.naturalWidth > 0 || entry.img.width > 0)) ? entry.img : null;
+}
 
 /* ============ Canvas ============ */
 const canvas = document.getElementById('gameCanvas');
@@ -668,17 +715,15 @@ function drawFarmland(r,c,x,y){
     const pct = dur>0 ? Math.min(1, elapsed/dur) : 1;
     const ready = pct>=1;
     if(ready){
-      // pulsing golden "ready to harvest" glow behind the mature crop
       const pulse = 0.35 + 0.25*Math.sin(Date.now()/260);
-      const grad = ctx.createRadialGradient(x+TILE/2,y+TILE/2,2,x+TILE/2,y+TILE/2,TILE*0.55);
-      grad.addColorStop(0, `rgba(255,215,0,${pulse})`);
-      grad.addColorStop(1, 'rgba(255,215,0,0)');
-      ctx.fillStyle = grad;
+      const gradient = ctx.createRadialGradient(x+TILE/2,y+TILE/2,2,x+TILE/2,y+TILE/2,TILE*0.55);
+      gradient.addColorStop(0, `rgba(255,215,0,${pulse})`);
+      gradient.addColorStop(1, 'rgba(255,215,0,0)');
+      ctx.fillStyle = gradient;
       ctx.fillRect(x,y,TILE,TILE);
     }
     ctx.font=(TILE*(0.28+0.27*pct))+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(ready ? cropEmoji(cell.type) : (pct<0.5?'🌱':'🌿'), x+TILE/2, y+TILE*0.42);
-    // countdown / ready label, drawn on a small pill for legibility against any background
     const label = ready ? 'Ready!' : formatDuration(dur-elapsed);
     ctx.font=(TILE*0.17)+'px sans-serif';
     const labelW = ctx.measureText(label).width;
@@ -698,8 +743,12 @@ function drawBuilding(c0,r0,c1,r1,wallColor,roofColor){
   ctx.fillStyle='#5a3a1a'; ctx.fillRect(x+w*0.42,y+h*0.68,w*0.18,h*0.34);
 }
 
+/* Animals now wander server-side, so we render them at a smoothed
+   (interpolated) pixel position rather than snapping to their raw
+   tile every poll — see updateAnimalVisuals(). */
 function drawAnimal(a){
-  const x=a.c*TILE, y=a.r*TILE;
+  const av = animalVisual[a.id] || {x:a.c*TILE, y:a.r*TILE};
+  const x = av.x, y = av.y;
   const bob = Math.sin(Date.now()/300 + a.r + a.c) * 2;
   const emoji = (ANIMAL_DISPLAY[a.id]||{}).emoji || '🐾';
   ctx.font=(TILE*0.6)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -712,9 +761,9 @@ function drawAnimal(a){
   ctx.fillText(cropEmoji(a.likes), x+TILE*0.82, y+TILE*0.9);
 }
 
-/* scale=1 keeps the original tuned size (used for creator preview + roster
-   mini icons); the main game view passes CHAR_SCALE so farmers stay
-   proportional to the (now larger) tile size. */
+/* Draws a farmer. If they've uploaded a photo, it's rendered
+   (once loaded) as a circular clipped image in place of the
+   default skin/hair face; the hat still layers on top either way. */
 function drawFarmer(c,cx,cy,farmer,facing,bob,scale){
   if(!farmer) return;
   const s = scale || 1;
@@ -726,17 +775,28 @@ function drawFarmer(c,cx,cy,farmer,facing,bob,scale){
   c.fillRect(cx-7*s,y+11*s,5*s,4*s); c.fillRect(cx+2*s,y+11*s,5*s,4*s);
   c.fillStyle=farmer.shirt;
   roundRect(c,cx-10*s,y-8*s,20*s,18*s,6*s); c.fill();
-  c.fillStyle=farmer.skin;
-  c.beginPath(); c.arc(cx,y-16*s,10*s,0,Math.PI*2); c.fill();
-  c.fillStyle=farmer.hair;
-  c.beginPath(); c.arc(cx,y-20*s,10*s,Math.PI,0); c.fill();
-  c.fillRect(cx-10*s,y-20*s,20*s,4*s);
-  c.fillStyle='#2d2d2d';
-  let eoff=0;
-  if(facing==='left') eoff=-3*s; else if(facing==='right') eoff=3*s;
-  if(facing!=='up'){
-    c.beginPath(); c.arc(cx-3*s+eoff,y-16*s,1.4*s,0,Math.PI*2); c.fill();
-    c.beginPath(); c.arc(cx+3*s+eoff,y-16*s,1.4*s,0,Math.PI*2); c.fill();
+
+  const photoImg = farmer.photo ? getPhotoImage(farmer) : null;
+  if(photoImg){
+    c.save();
+    c.beginPath(); c.arc(cx,y-16*s,10*s,0,Math.PI*2); c.clip();
+    c.drawImage(photoImg, cx-10*s, y-26*s, 20*s, 20*s);
+    c.restore();
+    c.strokeStyle='rgba(0,0,0,0.18)'; c.lineWidth=1*s;
+    c.beginPath(); c.arc(cx,y-16*s,10*s,0,Math.PI*2); c.stroke();
+  } else {
+    c.fillStyle=farmer.skin;
+    c.beginPath(); c.arc(cx,y-16*s,10*s,0,Math.PI*2); c.fill();
+    c.fillStyle=farmer.hair;
+    c.beginPath(); c.arc(cx,y-20*s,10*s,Math.PI,0); c.fill();
+    c.fillRect(cx-10*s,y-20*s,20*s,4*s);
+    c.fillStyle='#2d2d2d';
+    let eoff=0;
+    if(facing==='left') eoff=-3*s; else if(facing==='right') eoff=3*s;
+    if(facing!=='up'){
+      c.beginPath(); c.arc(cx-3*s+eoff,y-16*s,1.4*s,0,Math.PI*2); c.fill();
+      c.beginPath(); c.arc(cx+3*s+eoff,y-16*s,1.4*s,0,Math.PI*2); c.fill();
+    }
   }
   const hEmoji = hatEmoji(farmer.hat);
   if(hEmoji){ c.font=(16*s)+'px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(hEmoji, cx, y-27*s); }
@@ -766,6 +826,15 @@ function updateRemoteVisuals(){
   });
   Object.keys(remoteVisual).forEach(id=>{
     if(!state.farmers.some(f=>f.id===id)) delete remoteVisual[id];
+  });
+}
+function updateAnimalVisuals(){
+  state.animals.forEach(a=>{
+    const targetX = a.c*TILE, targetY = a.r*TILE;
+    if(!animalVisual[a.id]) animalVisual[a.id] = {x:targetX, y:targetY};
+    const av = animalVisual[a.id];
+    av.x += (targetX-av.x)*REMOTE_LERP;
+    av.y += (targetY-av.y)*REMOTE_LERP;
   });
 }
 
@@ -817,6 +886,7 @@ function update(){
   }
   bobPhase = Date.now()/300;
   updateRemoteVisuals();
+  updateAnimalVisuals();
 }
 
 function loop(){
@@ -942,7 +1012,10 @@ function goToTileAndAct(tr,tc){
       const fdr=tr-goalR, fdc=tc-goalC;
       if(fdr===-1) player.facing='up'; else if(fdr===1) player.facing='down';
       else if(fdc===-1) player.facing='left'; else if(fdc===1) player.facing='right';
-      if(animal) feedAnimal(animal); else toast('🤷 Nothing to do here.');
+      // Re-check for an animal at the ORIGINAL target on arrival, since it
+      // may have wandered away in the meantime (server-authoritative anyway).
+      const stillThere = animalAt(tr,tc);
+      if(stillThere) feedAnimal(stillThere); else toast('🤷 Nothing to do here.');
     };
   }
   const fullPath = reconstructPath(parent, goalR, goalC);
@@ -965,7 +1038,7 @@ async function tillTile(r,c){
 function plantOnTile(r,c){ openPlantModal(r,c); }
 async function waterTile(r,c){
   const res = await apiCall('/api/water', {playerId:myPlayerId, r, c});
-  if(res.ok){ toast(`💧 Watered! Grows a little faster now (${MAX_WATER_BOOSTS - (getCell(r,c).waterCount||0)} boosts left).`); }
+  if(res.ok){ toast(`💧 Watered! Grows a little faster now.`); }
   else if(res.error){ toast('⚠️ '+res.error); }
   renderHUD();
 }
@@ -1032,6 +1105,23 @@ function renderLevelBar(){
   let pct=100;
   if(next) pct = Math.min(100, Math.round(((pts-lvl.min)/(next.min-lvl.min))*100));
   document.getElementById('levelFill').style.width = pct+'%';
+}
+/* Shows the team's chosen farm name in the header + browser tab title
+   once someone has set it; hidden/default before that. */
+function renderFarmNameDisplay(){
+  const el = document.getElementById('farmNameDisplay');
+  const titleEl = document.getElementById('pageTitle');
+  if(state.teamName){
+    el.textContent = `🚜 ${state.teamName}`;
+    el.style.display = 'block';
+    const newTitle = `${state.teamName} — Team Farm Explorer 🌾`;
+    titleEl.textContent = newTitle;
+    document.title = newTitle;
+  } else {
+    el.style.display = 'none';
+    titleEl.textContent = 'Team Farm Explorer — Multiplayer 🌾';
+    document.title = 'Team Farm Explorer — Multiplayer 🌾';
+  }
 }
 function renderSeedStrip(){
   const wrap = document.getElementById('seedStrip');
@@ -1115,6 +1205,7 @@ function countReadyPlots(){
   return n;
 }
 function renderHUD(){
+  renderFarmNameDisplay();
   renderLevelBar();
   renderSeedStrip();
   renderHarvestStrip();
@@ -1214,11 +1305,7 @@ function renderSentimentChoices(){
   const prevSelected = kudosSelectedSentimentId;
   wrap.innerHTML='';
   const sentiments = state.sentiments || [];
-  if(prevSelected && sentiments.some(s=>s.id===prevSelected)){
-    kudosSelectedSentimentId = prevSelected;
-  } else {
-    kudosSelectedSentimentId = sentiments[0] ? sentiments[0].id : null;
-  }
+  kudosSelectedSentimentId = (prevSelected && sentiments.some(s=>s.id===prevSelected)) ? prevSelected : (sentiments[0] ? sentiments[0].id : null);
   sentiments.forEach(sent=>{
     const div = document.createElement('div');
     div.className='tag-choice' + (sent.id===kudosSelectedSentimentId ? ' selected':'');
@@ -1298,12 +1385,62 @@ setInterval(()=>{
   if(anyModalOpen()) return;
   if(Date.now() - lastKudosTs >= KUDOS_REMINDER_MS){
     toast("💌 It's been a while since the last kudos — anyone you'd like to recognize?");
-    lastKudosTs = Date.now(); // avoid repeated nagging; resets the 5-min timer
+    lastKudosTs = Date.now();
   }
 }, 60*1000);
 
+/* ============ Photo upload (character creator) ============
+   Resizes/compresses the chosen image client-side to a small
+   square JPEG data URL before it's ever sent to the server, both
+   to keep payloads small and so the "processing" happens instantly
+   without needing any server-side image library. */
+function processPhotoFile(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=> reject(new Error('Could not read that file.'));
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=> reject(new Error('Could not load that image.'));
+      img.onload = ()=>{
+        const size = 128;
+        const off = document.createElement('canvas');
+        off.width = size; off.height = size;
+        const octx = off.getContext('2d');
+        const srcSize = Math.min(img.width, img.height);
+        const sx = (img.width - srcSize)/2, sy = (img.height - srcSize)/2;
+        octx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, size, size);
+        resolve(off.toDataURL('image/jpeg', 0.72));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+document.getElementById('photoUploadBtn').onclick = ()=> document.getElementById('photoFileInput').click();
+document.getElementById('photoFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  if(!file.type || !file.type.startsWith('image/')){ toast('⚠️ Please choose an image file.'); return; }
+  try{
+    const dataUrl = await processPhotoFile(file);
+    if(dataUrl.length > MAX_PHOTO_DATA_URL_LENGTH){ toast('⚠️ Photo is too large even after compression — try a simpler image.'); return; }
+    creatorSelection.photo = dataUrl;
+    document.getElementById('photoRemoveBtn').style.display = 'inline-block';
+    drawCreatorPreview();
+    toast('📷 Photo added! It will show on your farmer.');
+  }catch(err){
+    toast('⚠️ Could not process that photo.');
+  }
+});
+document.getElementById('photoRemoveBtn').onclick = ()=>{
+  creatorSelection.photo = null;
+  document.getElementById('photoFileInput').value = '';
+  document.getElementById('photoRemoveBtn').style.display = 'none';
+  drawCreatorPreview();
+};
+
 /* ============ Character Creator (join + edit) ============ */
-let creatorSelection = { skin:SKIN_COLORS[0], hair:HAIR_COLORS[0], shirt:SHIRT_COLORS[0], pants:PANTS_COLORS[0], hat:'none' };
+let creatorSelection = { skin:SKIN_COLORS[0], hair:HAIR_COLORS[0], shirt:SHIRT_COLORS[0], pants:PANTS_COLORS[0], hat:'none', photo:null };
 let creatorMode = 'join';
 function buildSwatches(containerId, colors, key, selectedValue){
   const wrap = document.getElementById(containerId);
@@ -1337,27 +1474,23 @@ function drawCreatorPreview(){
   const c = document.getElementById('creatorPreviewCanvas');
   const cx2 = c.getContext('2d');
   cx2.clearRect(0,0,c.width,c.height);
-  const fake = { name:'', skin:creatorSelection.skin, hair:creatorSelection.hair, shirt:creatorSelection.shirt, pants:creatorSelection.pants, hat:creatorSelection.hat };
+  const fake = { id:'__preview__', name:'', skin:creatorSelection.skin, hair:creatorSelection.hair, shirt:creatorSelection.shirt, pants:creatorSelection.pants, hat:creatorSelection.hat, photo:creatorSelection.photo };
   drawFarmer(cx2, c.width/2, c.height/2+10, fake, 'down', 0, 1);
 }
 function openCreator(isFirstTime){
   creatorMode = isFirstTime ? 'join' : 'edit';
   const existing = isFirstTime ? null : myFarmer();
   creatorSelection = existing
-    ? { skin:existing.skin, hair:existing.hair, shirt:existing.shirt, pants:existing.pants, hat:existing.hat }
-    : { skin:SKIN_COLORS[0], hair:HAIR_COLORS[0], shirt:SHIRT_COLORS[0], pants:PANTS_COLORS[0], hat:'none' };
+    ? { skin:existing.skin, hair:existing.hair, shirt:existing.shirt, pants:existing.pants, hat:existing.hat, photo:existing.photo||null }
+    : { skin:SKIN_COLORS[0], hair:HAIR_COLORS[0], shirt:SHIRT_COLORS[0], pants:PANTS_COLORS[0], hat:'none', photo:null };
   buildSwatches('skinSwatches', SKIN_COLORS, 'skin', creatorSelection.skin);
   buildSwatches('hairSwatches', HAIR_COLORS, 'hair', creatorSelection.hair);
   buildSwatches('shirtSwatches', SHIRT_COLORS, 'shirt', creatorSelection.shirt);
   buildSwatches('pantsSwatches', PANTS_COLORS, 'pants', creatorSelection.pants);
   buildHatChoices(creatorSelection.hat);
+  document.getElementById('photoFileInput').value = '';
+  document.getElementById('photoRemoveBtn').style.display = creatorSelection.photo ? 'inline-block' : 'none';
 
-  /* The farm/team name only needs to be set ONCE, by whoever joins first —
-     the server ignores it from anyone after that (see apiJoin). So we only
-     show this field when the farm doesn't have a name yet; everyone joining
-     afterward sees a message confirming which farm they're joining instead,
-     making it clear they're landing in the same shared space, not creating
-     a new one. */
   const needsFarmName = isFirstTime && !state.teamName;
   document.getElementById('creatorFarmName').style.display = needsFarmName ? 'block' : 'none';
   document.getElementById('creatorFarmName').previousElementSibling.style.display = needsFarmName ? 'block' : 'none';
@@ -1409,6 +1542,7 @@ function setPlayerToFarmerPosition(f){
 
 /* ============ My Farmer Modal ============ */
 document.getElementById('btnMyFarmer').onclick = ()=>{ renderRoster(); document.getElementById('myFarmerOverlay').style.display='flex'; };
+document.getElementById('myFarmerCloseX').onclick = ()=>{ document.getElementById('myFarmerOverlay').style.display='none'; };
 document.getElementById('btnEditMyFarmer').onclick = ()=>{ document.getElementById('myFarmerOverlay').style.display='none'; openCreator(false); };
 document.getElementById('btnLeaveFarm').onclick = async ()=>{
   if(!confirm('Leave the farm? Your farmer will be removed for everyone.')) return;
@@ -1581,12 +1715,12 @@ canvas.addEventListener('mousemove', (evt)=>{
   if(r<0||r>=ROWS||c<0||c>=COLS){ canvas.style.cursor='default'; return; }
   hoverTile = {r,c};
   if(placementModeActive){
-    canvas.style.cursor = (grid[r][c]==='grass' && !state.decorations[cellKey(r,c)]) ? 'pointer' : 'not-allowed';
+    canvas.style.cursor = (grid[r][c]==='grass' && !state.decorations[cellKey(r,c)]) ? FARM_CURSOR : 'not-allowed';
     return;
   }
   const t = grid[r][c];
   const animal = animalAt(r,c);
-  canvas.style.cursor = (animal || !isObstacle(t)) ? 'pointer' : 'not-allowed';
+  canvas.style.cursor = (animal || !isObstacle(t)) ? FARM_CURSOR : 'not-allowed';
 });
 canvas.addEventListener('mouseleave', ()=>{ canvas.style.cursor='default'; });
 
